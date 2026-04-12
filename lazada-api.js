@@ -1,9 +1,9 @@
 import crypto from 'crypto';
 import fetch  from 'node-fetch';
 
-const APP_KEY    = process.env.LAZADA_APP_KEY    || '105827';
-const APP_SECRET = process.env.LAZADA_APP_SECRET || 'r8ZMKhPxu1JZUCwTUBVMJiJnZKjhWeQF';
-const USER_TOKEN = process.env.LAZADA_USER_TOKEN || 'c3ed9061b8d7473e9d224e14ae4b4212';
+const APP_KEY    = process.env.LAZADA_APP_KEY;
+const APP_SECRET = process.env.LAZADA_APP_SECRET;
+const USER_TOKEN = process.env.LAZADA_USER_TOKEN;
 const API_HOST   = 'https://api.lazada.vn/rest';
 
 /**
@@ -47,11 +47,14 @@ async function lazadaCall(apiPath, extraParams = {}) {
  */
 export function registerLazadaRoutes(app) {
 
-  /* POST /api/lazada/convert
-     Body: { urls: string[] }   — mảng link Lazada gốc
-     Response: { results: [{ original, affiliate, short }] }
-  */
+  /* POST /api/lazada/convert */
   app.post('/api/lazada/convert', async (req, res) => {
+    if (!APP_KEY || !APP_SECRET || !USER_TOKEN) {
+      return res.status(500).json({
+        error: 'Thiếu cấu hình Lazada API',
+        hint : 'Thêm LAZADA_APP_KEY, LAZADA_APP_SECRET, LAZADA_USER_TOKEN vào Environment Variables trên Render'
+      });
+    }
     const { urls } = req.body;
 
     if (!Array.isArray(urls) || urls.length === 0) {
@@ -92,8 +95,15 @@ export function registerLazadaRoutes(app) {
     }
   });
 
-  /* GET /api/lazada/status — kiểm tra token còn hoạt động */
+  /* GET /api/lazada/status */
   app.get('/api/lazada/status', async (req, res) => {
+    if (!APP_KEY || !APP_SECRET || !USER_TOKEN) {
+      return res.status(500).json({
+        ok: false,
+        error: 'Thiếu cấu hình Lazada API',
+        hint : 'Thêm LAZADA_APP_KEY, LAZADA_APP_SECRET, LAZADA_USER_TOKEN vào Environment Variables trên Render'
+      });
+    }
     try {
       const data = await lazadaCall('/auth/token/query', {});
       if (data.code === '0') {
