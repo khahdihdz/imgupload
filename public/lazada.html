@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lazada Affiliate – WaterMark Pro</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+:root { --accent: #f0a030; --accent2: #ff6b35; }
+body::before {
+  background-image:
+    linear-gradient(rgba(240,160,48,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(240,160,48,.03) 1px,transparent 1px);
+}
+.toast-box { background:#1a1508; border-color:#7a5a1e; color:#ffcc80; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<!-- HEADER -->
+<header>
+  <div class="logo-hex">L</div>
+  <div class="logo-name d-none d-sm-block">Lazada <em>Affiliate</em></div>
+  <span class="badge-v d-none d-sm-inline">v4.0</span>
+  <nav class="hdr-nav ms-auto">
+    <a href="/index.html"       class="nav-link-btn"><i class="bi bi-image"></i><span class="nav-text"> WaterMark</span></a>
+    <a href="/lazada.html"      class="nav-link-btn active"><i class="bi bi-link-45deg"></i><span class="nav-text"> Lazada</span></a>
+    <a href="/filemanager.html" class="nav-link-btn"><i class="bi bi-folder2-open"></i><span class="nav-text"> Files</span></a>
+  </nav>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+<div class="row g-3 g-lg-4">
+
+  <!-- LEFT: Input + Config -->
+  <div class="col-12 col-lg-5">
+
+    <!-- STEP 01 — CONNECT -->
+    <div class="step"><i class="bi bi-plug me-1"></i>01 / Kết nối API</div>
+    <div class="cc mb-3">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="flex-grow-1">
+          <div style="font-size:.85rem;font-weight:700;margin-bottom:.15rem">Lazada OpenAPI</div>
+          <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted)">
+            Credentials cấu hình qua <strong style="color:var(--text)">Environment Variables</strong>
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn-sm" id="btnTest" onclick="testToken()"><i class="bi bi-plug me-1"></i>Test</button>
+          <button class="btn-sm" onclick="debugApi()" title="Xem raw response API"><i class="bi bi-bug me-1"></i>Debug</button>
+        </div>
+      </div>
+      <div class="status-box" id="statusBox"></div>
+      <div id="debugBox" class="hint-box" style="display:none;max-height:180px;overflow:auto;word-break:break-all;white-space:pre-wrap;font-size:.6rem"></div>
+    </div>
+
+    <!-- STEP 02 — INPUT -->
+    <div class="step"><i class="bi bi-input-cursor-text me-1"></i>02 / Nhập link Lazada</div>
+
+    <div class="tip-box mb-3">
+      💡 Mỗi dòng một URL &nbsp;·&nbsp; Tối đa <strong>50 link</strong> &nbsp;·&nbsp;
+      Hỗ trợ link sản phẩm, shop, campaign
+    </div>
+
+    <div class="cc">
+      <textarea class="ta" id="urlInput" rows="8"
+        placeholder="https://www.lazada.vn/products/...
+https://www.lazada.vn/shop/...
+https://s.lazada.vn/s.xxxxxxxx"></textarea>
+      <div class="url-counter" id="urlCounter">0 URL</div>
+
+      <div class="action-row">
+        <button class="btn-g flex-grow-1" id="btnConvert" onclick="convertLinks()">
+          <i class="bi bi-lightning-fill me-1"></i>Chuyển đổi Affiliate
+        </button>
+        <button class="btn-gh" onclick="pasteClipboard()" title="Dán từ clipboard"><i class="bi bi-clipboard"></i></button>
+        <button class="btn-gh" onclick="clearAll()" title="Xoá tất cả"><i class="bi bi-arrow-counterclockwise"></i></button>
+      </div>
+
+      <div class="prog-wrap" id="progWrap">
+        <div class="prog-label">
+          <span id="progText">Đang xử lý…</span>
+          <span id="progCount"></span>
+        </div>
+        <div class="prog-track"><div class="prog-bar" id="progBar"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Results -->
+  <div class="col-12 col-lg-7">
+    <div class="result-wrap" id="resultWrap">
+      <div class="result-head">
+        <div class="result-title" id="resultTitle">Kết quả</div>
+        <div class="result-actions">
+          <button class="btn-sm" onclick="copyAllAff()"><i class="bi bi-clipboard me-1"></i>Copy affiliate</button>
+          <button class="btn-sm" onclick="copyAllShort()"><i class="bi bi-clipboard me-1"></i>Copy short link</button>
+        </div>
+      </div>
+      <div class="result-list" id="resultList"></div>
+    </div>
+
+    <!-- Placeholder khi chưa có kết quả -->
+    <div id="resultPlaceholder" class="text-center py-5" style="color:var(--muted)">
+      <i class="bi bi-link-45deg" style="font-size:3rem;opacity:.2;display:block;margin-bottom:.75rem"></i>
+      <p style="font-family:'DM Mono',monospace;font-size:.75rem">
+        Nhập URL Lazada rồi nhấn <strong style="color:var(--accent)">Chuyển đổi</strong> để lấy affiliate link
+      </p>
+    </div>
+  </div>
+
+</div><!-- /row -->
+</div><!-- /main -->
+</div><!-- /wrapper -->
+
+<div class="toast-box" id="toast"></div>
+<script>
+let lastResults=[];
+document.getElementById('urlInput').addEventListener('input',updateCounter);
+function updateCounter(){const n=getUrls().length;document.getElementById('urlCounter').textContent=`${n} URL`;}
+function getUrls(){return document.getElementById('urlInput').value.split('\n').map(l=>l.trim()).filter(l=>l.startsWith('http://')||l.startsWith('https://'));}
+async function testToken(){const btn=document.getElementById('btnTest');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>…';btn.disabled=true;setStatus('info','⏳ Đang kiểm tra kết nối Lazada…');try{const res=await fetch('/api/lazada/status'),json=await safeJson(res);if(json.ok){setStatus('ok',json.message||'✅ Kết nối Lazada thành công');}else{setStatus('err',`❌ ${json.error||'Token không hợp lệ'}${json.hint?' · '+json.hint:''}`);};}catch(e){setStatus('err',`❌ Không kết nối được: ${e.message}`);}btn.innerHTML='<i class="bi bi-plug me-1"></i>Test';btn.disabled=false;}
+async function debugApi(){const box=document.getElementById('debugBox');box.style.display='block';box.textContent='⏳ Đang gọi /api/lazada/debug...';try{const res=await fetch('/api/lazada/debug'),json=await res.json();box.textContent=JSON.stringify(json,null,2);}catch(e){box.textContent='Lỗi: '+e.message;}}
+async function convertLinks(){const urls=getUrls();if(!urls.length){toast('⚠️ Chưa nhập URL nào');return;}const btn=document.getElementById('btnConvert');btn.disabled=true;setStatus('info',`⏳ Đang chuyển đổi ${urls.length} link…`);showProgress(urls.length);document.getElementById('resultWrap').classList.remove('on');document.getElementById('resultPlaceholder').style.display='none';const BATCH=10,allResults=[];let done=0;for(let i=0;i<urls.length;i+=BATCH){const chunk=urls.slice(i,i+BATCH);try{const res=await fetch('/api/lazada/convert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({urls:chunk})});const json=await safeJson(res);if(res.ok&&json.results){allResults.push(...json.results);}else{chunk.forEach(u=>allResults.push({original:u,error:json.error||'Lỗi không xác định',hint:json.hint||''}));}}catch(e){chunk.forEach(u=>allResults.push({original:u,error:e.message}));}done+=chunk.length;updateProgress(done,urls.length);}lastResults=allResults;renderResults(allResults);btn.disabled=false;const errCount=allResults.filter(r=>r.error).length,okCount=allResults.length-errCount;if(errCount===0){setStatus('ok',`✅ Đã chuyển đổi ${okCount} link thành công`);}else{setStatus('err',`⚠️ ${okCount} thành công · ${errCount} thất bại`);}}
+function renderResults(results){const wrap=document.getElementById('resultWrap'),list=document.getElementById('resultList'),title=document.getElementById('resultTitle');const ok=results.filter(r=>!r.error).length,err=results.filter(r=>r.error).length;title.textContent=`Kết quả · ${ok} thành công${err?` · ${err} lỗi`:''}`;list.innerHTML=results.map((r,i)=>{if(r.error){return`<div class="result-item has-err"><div class="ri-label">❌ Lỗi · #${i+1}</div><div class="ri-url">${esc(r.original)}</div><div class="ri-err">${esc(r.error)}</div>${r.hint?`<div class="ri-err" style="color:#ffb347;margin-top:.2rem">💡 ${esc(r.hint)}</div>`:''}${r.raw?`<details style="margin-top:.3rem"><summary style="font-size:.6rem;cursor:pointer;color:var(--muted)">Raw response</summary><pre style="font-size:.55rem;overflow:auto;max-height:100px">${esc(r.raw)}</pre></details>`:''}</div>`;}const hasShort=r.short&&r.short!==r.affiliate;return`<div class="result-item"><div class="ri-label">Link gốc · #${i+1}</div><div class="ri-url">${esc(r.original)}</div><div class="ri-label">🔗 Affiliate URL</div><div class="ri-row"><div class="ri-val${r.affiliate?'':' empty'}">${r.affiliate?`<a href="${esc(r.affiliate)}" target="_blank">${esc(r.affiliate)}</a>`:'—'}</div>${r.affiliate?`<button class="btn-sm" onclick="copyText('${ea(r.affiliate)}',this)">Copy</button>`:''}</div>${hasShort?`<div class="ri-label" style="margin-top:.4rem">⚡ Short link</div><div class="ri-row"><div class="ri-val"><a href="${esc(r.short)}" target="_blank">${esc(r.short)}</a></div><button class="btn-sm" onclick="copyText('${ea(r.short)}',this)">Copy</button></div>`:''}`;}).join('');wrap.classList.add('on');}
+function copyText(text,btn){navigator.clipboard.writeText(text).then(()=>{const o=btn.textContent;btn.textContent='✓';btn.classList.add('ok');setTimeout(()=>{btn.textContent=o;btn.classList.remove('ok');},1600);});}
+function copyAllAff(){const links=lastResults.filter(r=>r.affiliate).map(r=>r.affiliate).join('\n');if(!links){toast('⚠️ Chưa có link affiliate');return;}navigator.clipboard.writeText(links).then(()=>toast(`✅ Đã copy ${links.split('\n').length} affiliate link`));}
+function copyAllShort(){const links=lastResults.filter(r=>r.short).map(r=>r.short).join('\n');if(!links){toast('⚠️ Chưa có short link');return;}navigator.clipboard.writeText(links).then(()=>toast(`✅ Đã copy ${links.split('\n').length} short link`));}
+function showProgress(total){document.getElementById('progWrap').classList.add('on');document.getElementById('progBar').style.width='0%';document.getElementById('progCount').textContent=`0 / ${total}`;document.getElementById('progText').textContent='Đang xử lý…';}
+function updateProgress(done,total){document.getElementById('progBar').style.width=Math.round(done/total*100)+'%';document.getElementById('progCount').textContent=`${done} / ${total}`;if(done===total)document.getElementById('progText').textContent='Hoàn tất ✓';}
+function setStatus(type,msg){const el=document.getElementById('statusBox');el.className=`status-box ${type}`;el.textContent=msg;}
+async function safeJson(res){const text=await res.text();try{return JSON.parse(text);}catch(_){throw new Error(`Server trả lỗi HTTP ${res.status}`);}}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function ea(s){return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;');}
+function clearAll(){document.getElementById('urlInput').value='';document.getElementById('urlCounter').textContent='0 URL';document.getElementById('resultWrap').classList.remove('on');document.getElementById('resultPlaceholder').style.display='';document.getElementById('progWrap').classList.remove('on');document.getElementById('statusBox').className='status-box';document.getElementById('debugBox').style.display='none';lastResults=[];}
+async function pasteClipboard(){try{const text=await navigator.clipboard.readText(),ta=document.getElementById('urlInput');ta.value=(ta.value?ta.value+'\n':'')+text;updateCounter();toast('✅ Đã dán từ clipboard');}catch(_){toast('⚠️ Không đọc được clipboard');}}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('on'),2600);}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
