@@ -7,14 +7,16 @@ const USER_TOKEN = process.env.LAZADA_USER_TOKEN;
 const API_HOST   = 'https://api.lazada.vn/rest';
 
 /**
- * Tạo chữ ký HMAC-SHA256 cho Lazada OpenAPI
- * Spec: https://open.lazada.com/apps/doc/doc.htm?spm=a2o9m.11193531.0.0.6c8d6bbeg3Rz0x#/doc?nodeId=10450&docId=108068
+ * Tạo chữ ký HMAC-SHA256 đúng spec Lazada OpenAPI:
+ * baseString = apiPath + key1value1key2value2... (sorted alphabetically, NO sign param)
  */
-function sign(params, secret) {
-  // 1. Sắp xếp params theo alphabet
-  const sorted = Object.keys(params).sort().map(k => `${k}${params[k]}`).join('');
-  // 2. Tính HMAC-SHA256
-  return crypto.createHmac('sha256', secret).update(sorted).digest('hex').toUpperCase();
+function sign(apiPath, params, secret) {
+  const sorted = Object.keys(params)
+    .sort()
+    .map(k => `${k}${params[k]}`)
+    .join('');
+  const baseString = apiPath + sorted;
+  return crypto.createHmac('sha256', secret).update(baseString).digest('hex').toUpperCase();
 }
 
 /**
@@ -22,41 +24,66 @@ function sign(params, secret) {
  */
 async function lazadaCall(apiPath, extraParams = {}) {
   const params = {
-    app_key   : APP_KEY,
-    timestamp : Date.now().toString(),
-    sign_method: 'sha256',
+    app_key     : APP_KEY,
+    timestamp   : Date.now().toString(),
+    sign_method : 'sha256',
     access_token: USER_TOKEN,
     ...extraParams,
   };
 
-  params.sign = sign({ ...params, method: apiPath }, APP_SECRET);
+  // Tính sign SAU khi có đủ params, KHÔNG đưa sign vào params trước khi ký
+  params.sign = sign(apiPath, params, APP_SECRET);
 
-  const qs = new URLSearchParams(params).toString();
+  const qs  = new URLSearchParams(params).toString();
   const url = `${API_HOST}${apiPath}?${qs}`;
 
-  const res  = await fetch(url, { headers: { 'User-Agent': 'lazada-tool/1.0' } });
+  const res  = await fetch(url, { headers: { 'User-Agent': 'lazada-affiliate-tool/1.0' } });
   const text = await res.text();
   let json;
   try { json = JSON.parse(text); }
-  catch(_) { throw new Error(`Lazada API trả về không phải JSON: ${text.slice(0,200)}`); }
+  catch(_) { throw new Error(`Lazada API trả về không phải JSON: ${text.slice(0, 300)}`); }
   return json;
 }
 
-/**
- * Đăng ký route lên Express app
- */
+function checkEnv() {
+  if (!APP_KEY || !APP_SECRET || !USER_TOKEN) {
+    return {
+      error: 'Thiếu cấu hình Lazada API',
+      hint : 'Thêm LAZADA_APP_KEY, LAZADA_APP_SECRET, LAZADA_USER_TOKEN vào Environment Variables trên Render'
+    };
+  }
+  return null;
+}
+
 export function registerLazadaRoutes(app) {
 
-  /* POST /api/lazada/convert */
-  app.post('/api/lazada/convert', async (req, res) => {
-    if (!APP_KEY || !APP_SECRET || !USER_TOKEN) {
-      return res.status(500).json({
-        error: 'Thiếu cấu hình Lazada API',
-        hint : 'Thêm LAZADA_APP_KEY, LAZADA_APP_SECRET, LAZADA_USER_TOKEN vào Environment Variables trên Render'
-      });
-    }
-    const { urls } = req.body;
+  /* GET /api/lazada/status — kiểm tra token */
+  app.get('/api/lazada/status', async (req, res) => {
+    const envErr = checkEnv();
+    if (envErr) return res.status(500).json({ ok: false, ...envErr });
 
+    try {
+      // /auth/token/query là endpoint hợp lệ để verify token
+      const data = await lazadaCall('/auth/token/query', {});
+      if (data.code === '0') {
+        res.json({ ok: true, message: '✅ Lazada token hợp lệ' });
+      } else {
+        res.status(401).json({ ok: false, error: data.message || `Lỗi code: ${data.code}`, code: data.code });
+      }
+    } catch(e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  /* POST /api/lazada/convert
+     Body: { urls: string[] }
+     Response: { results: [{ original, affiliate, short }] }
+  */
+  app.post('/api/lazada/convert', async (req, res) => {
+    const envErr = checkEnv();
+    if (envErr) return res.status(500).json({ ...envErr });
+
+    const { urls } = req.body;
     if (!Array.isArray(urls) || urls.length === 0) {
       return res.status(400).json({ error: 'Thiếu danh sách URL' });
     }
@@ -68,20 +95,24 @@ export function registerLazadaRoutes(app) {
       const results = await Promise.all(
         urls.map(async (original) => {
           try {
-            const data = await lazadaCall('/affiliate/link/generate', {
-              tracking_id: 'default',
+            // Đúng path theo Lazada OpenAPI docs cho affiliate link generation
+            const data = await lazadaCall('/affiliate/customized/url/get', {
               urls: original,
             });
 
             if (data.code !== '0') {
-              return { original, error: data.message || `Lỗi code ${data.code}` };
+              return { original, error: data.message || `Lỗi code: ${data.code}` };
             }
 
-            const item = data.result?.[0] || data.data?.[0] || {};
+            // Lazada trả result dạng array hoặc single object tuỳ version
+            const item = Array.isArray(data.result)
+              ? (data.result[0] || {})
+              : (data.result || data.data || {});
+
             return {
               original,
-              affiliate : item.aff_url  || item.affiliate_url || item.encoded_url || '',
-              short     : item.short_url || item.aff_short_url || '',
+              affiliate : item.aff_url       || item.affiliate_url  || item.encoded_url   || '',
+              short     : item.aff_short_url  || item.short_url      || '',
             };
           } catch(e) {
             return { original, error: e.message };
@@ -92,27 +123,6 @@ export function registerLazadaRoutes(app) {
       res.json({ results });
     } catch(e) {
       res.status(500).json({ error: `Lỗi server: ${e.message}` });
-    }
-  });
-
-  /* GET /api/lazada/status */
-  app.get('/api/lazada/status', async (req, res) => {
-    if (!APP_KEY || !APP_SECRET || !USER_TOKEN) {
-      return res.status(500).json({
-        ok: false,
-        error: 'Thiếu cấu hình Lazada API',
-        hint : 'Thêm LAZADA_APP_KEY, LAZADA_APP_SECRET, LAZADA_USER_TOKEN vào Environment Variables trên Render'
-      });
-    }
-    try {
-      const data = await lazadaCall('/auth/token/query', {});
-      if (data.code === '0') {
-        res.json({ ok: true, message: '✅ Lazada token hợp lệ' });
-      } else {
-        res.status(401).json({ ok: false, error: data.message || 'Token không hợp lệ', code: data.code });
-      }
-    } catch(e) {
-      res.status(500).json({ ok: false, error: e.message });
     }
   });
 }

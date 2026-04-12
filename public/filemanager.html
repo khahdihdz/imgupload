@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>File Manager – WaterMark Pro</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+/* ── FILE MANAGER SPECIFIC ── */
+:root { --main-width: 1100px; }
+
+.fm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: .85rem;
+  margin-top: 1.1rem;
+}
+
+.fm-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color .2s, transform .2s;
+  cursor: pointer;
+  position: relative;
+}
+.fm-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.fm-card.selected { border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(96,192,240,.3); }
+
+.fm-thumb {
+  width: 100%; aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+  background: var(--card);
+}
+.fm-thumb-placeholder {
+  width: 100%; aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; background: var(--card); color: var(--muted);
+}
+
+.fm-info {
+  padding: .5rem .6rem;
+}
+.fm-name {
+  font-family: 'DM Mono', monospace;
+  font-size: .62rem; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-bottom: .2rem;
+}
+.fm-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: .55rem; color: var(--muted);
+}
+
+.fm-check {
+  position: absolute; top: .5rem; left: .5rem;
+  width: 18px; height: 18px;
+  background: rgba(9,9,15,.8); border: 2px solid var(--border);
+  border-radius: 4px; display: flex; align-items: center; justify-content: center;
+  font-size: .65rem; transition: all .15s;
+  opacity: 0;
+}
+.fm-card:hover .fm-check, .fm-card.selected .fm-check { opacity: 1; }
+.fm-card.selected .fm-check { background: var(--accent2); border-color: var(--accent2); color: #000; }
+
+.fm-toolbar {
+  display: flex; gap: .5rem; flex-wrap: wrap; align-items: center;
+  padding: .85rem 1rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); margin-bottom: 1rem;
+}
+.fm-toolbar-right { margin-left: auto; display: flex; gap: .5rem; }
+
+.fm-stats {
+  display: flex; gap: 1.4rem; flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+}
+.fm-stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: .75rem 1.1rem;
+  flex: 1; min-width: 140px;
+}
+.fm-stat-label {
+  font-family: 'DM Mono', monospace; font-size: .55rem;
+  color: var(--muted); text-transform: uppercase; letter-spacing: .12em;
+  margin-bottom: .3rem;
+}
+.fm-stat-val {
+  font-size: 1.4rem; font-weight: 800; color: var(--accent);
+  line-height: 1;
+}
+
+/* Login screen */
+.login-wrap {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 60vh; text-align: center; gap: 1.2rem;
+}
+.login-icon {
+  font-size: 3.5rem;
+  filter: drop-shadow(0 0 20px rgba(240,192,96,.4));
+}
+.login-title { font-size: 1.6rem; font-weight: 800; }
+.login-sub { color: var(--muted); font-family: 'DM Mono', monospace; font-size: .75rem; max-width: 340px; line-height: 1.7; }
+
+.btn-gh-login {
+  display: inline-flex; align-items: center; gap: .55rem;
+  background: #fff; color: #000; border: none;
+  padding: .75rem 1.6rem; border-radius: var(--radius-md);
+  font-family: 'Syne', sans-serif; font-weight: 700; font-size: .9rem;
+  text-decoration: none; cursor: pointer;
+  transition: all .2s; box-shadow: 0 4px 18px rgba(0,0,0,.3);
+}
+.btn-gh-login:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.4); color: #000; }
+.btn-gh-login svg { width: 20px; height: 20px; }
+
+/* Error alert */
+.err-banner {
+  background: rgba(255,80,80,.08); border: 1px solid rgba(255,80,80,.25);
+  color: #ff8888; border-radius: var(--radius-md);
+  padding: .7rem 1rem; font-family: 'DM Mono', monospace; font-size: .75rem;
+  margin-bottom: 1rem; display: none;
+}
+.err-banner.on { display: block; }
+
+/* Empty state */
+.fm-empty {
+  grid-column: 1 / -1;
+  text-align: center; padding: 3rem 1rem;
+  color: var(--muted); font-family: 'DM Mono', monospace; font-size: .8rem;
+}
+.fm-empty .em-ic { font-size: 3rem; margin-bottom: .7rem; display: block; opacity: .3; }
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--card) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* Preview modal */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,.92);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .25s;
+}
+.modal-overlay.on { opacity: 1; pointer-events: all; }
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); max-width: 90vw; max-height: 90vh;
+  overflow: hidden; display: flex; flex-direction: column;
+  transform: scale(.94); transition: transform .25s;
+}
+.modal-overlay.on .modal-box { transform: scale(1); }
+.modal-header {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .75rem 1rem; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--accent2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modal-close { background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; padding: .2rem .4rem; border-radius: 4px; transition: color .15s; }
+.modal-close:hover { color: var(--text); }
+.modal-img { max-width: 80vw; max-height: 70vh; object-fit: contain; display: block; }
+.modal-footer {
+  padding: .65rem 1rem; border-top: 1px solid var(--border);
+  display: flex; gap: .5rem; flex-wrap: wrap; align-items: center;
+}
+.modal-meta { font-family: 'DM Mono', monospace; font-size: .6rem; color: var(--muted); flex: 1; }
+
+/* Delete confirm */
+.del-confirm {
+  position: fixed; inset: 0; z-index: 1100;
+  background: rgba(0,0,0,.85);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.del-confirm.on { opacity: 1; pointer-events: all; }
+.del-box {
+  background: var(--surface); border: 1px solid rgba(255,80,80,.3);
+  border-radius: var(--radius-lg); padding: 1.5rem; max-width: 360px;
+  text-align: center;
+}
+.del-box h5 { font-size: 1rem; margin-bottom: .5rem; }
+.del-box p { font-family: 'DM Mono', monospace; font-size: .7rem; color: var(--muted); margin-bottom: 1.1rem; line-height: 1.6; }
+.del-count { color: var(--accent); font-weight: 700; }
+
+/* Search bar */
+.fm-search {
+  position: relative; flex: 1; min-width: 180px;
+}
+.fm-search input {
+  width: 100%; background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-family: 'DM Mono', monospace; font-size: .7rem;
+  padding: .38rem .7rem .38rem 1.9rem;
+  transition: border-color .2s; outline: none;
+}
+.fm-search input:focus { border-color: var(--accent2); }
+.fm-search::before { content:'🔍'; position: absolute; left: .55rem; top: 50%; transform: translateY(-50%); font-size: .7rem; }
+
+/* Sort select */
+.fm-sort {
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--text); border-radius: var(--radius-sm);
+  font-family: 'DM Mono', monospace; font-size: .7rem;
+  padding: .38rem .65rem; outline: none; cursor: pointer;
+}
+
+/* User chip in header */
+.user-chip {
+  display: flex; align-items: center; gap: .45rem;
+  background: rgba(96,192,240,.1); border: 1px solid rgba(96,192,240,.25);
+  border-radius: 20px; padding: .2rem .65rem .2rem .3rem;
+  font-family: 'DM Mono', monospace; font-size: .65rem; color: var(--accent2);
+}
+.user-avatar {
+  width: 22px; height: 22px; border-radius: 50%; object-fit: cover;
+}
+
+/* Responsive */
+@media(max-width:600px){
+  .fm-grid { grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); }
+  .fm-stats { gap: .75rem; }
+  .fm-stat-val { font-size: 1.1rem; }
+  .fm-toolbar { gap: .4rem; }
+}
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<!-- HEADER -->
+<header>
+  <div class="logo-hex">W</div>
+  <div class="logo-name">Water<em>Mark</em> Pro</div>
+  <span class="badge-v">v4.0</span>
+  <nav class="hdr-nav">
+    <a href="/index.html"       class="nav-link-btn">🖼 WaterMark</a>
+    <a href="/lazada.html"      class="nav-link-btn">🔗 Lazada</a>
+    <a href="/filemanager.html" class="nav-link-btn active">📁 File Manager</a>
+  </nav>
+  <div id="userChip" style="display:none;margin-left:.5rem"></div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ERROR BANNER -->
+  <div class="err-banner" id="errBanner"></div>
+
+  <!-- LOGIN SCREEN -->
+  <div class="login-wrap" id="loginWrap" style="display:none">
+    <div class="login-icon">📁</div>
+    <div class="login-title">File Manager</div>
+    <p class="login-sub">Đăng nhập bằng tài khoản GitHub Admin để quản lý ảnh trong repo.</p>
+    <a href="/auth/github" class="btn-gh-login">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      Đăng nhập với GitHub
+    </a>
+    <div id="oauthConfigWarn" style="display:none" class="tip-box" style="margin-top:.5rem">
+      ⚠️ <strong>Chưa cấu hình OAuth App.</strong> Thêm <code>GITHUB_CLIENT_ID</code> và <code>GITHUB_CLIENT_SECRET</code> vào <code>.env</code>.<br>
+      Tạo tại: <a href="https://github.com/settings/developers" target="_blank" style="color:var(--accent)">github.com/settings/developers</a>
+    </div>
+  </div>
+
+  <!-- FM CONTENT (khi đã đăng nhập) -->
+  <div id="fmContent" style="display:none">
+
+    <!-- STATS -->
+    <div class="fm-stats" id="fmStats">
+      <div class="fm-stat-card">
+        <div class="fm-stat-label">📂 Thư mục</div>
+        <div class="fm-stat-val skeleton" id="statFolder" style="height:28px;width:80px;border-radius:4px">&nbsp;</div>
+      </div>
+      <div class="fm-stat-card">
+        <div class="fm-stat-label">📄 Tổng file</div>
+        <div class="fm-stat-val" id="statCount">—</div>
+      </div>
+      <div class="fm-stat-card">
+        <div class="fm-stat-label">💾 Dung lượng</div>
+        <div class="fm-stat-val" id="statSize">—</div>
+      </div>
+      <div class="fm-stat-card">
+        <div class="fm-stat-label">🌿 Branch</div>
+        <div class="fm-stat-val" id="statBranch" style="font-size:.9rem">—</div>
+      </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="fm-toolbar">
+      <div class="fm-search">
+        <input type="text" id="searchInput" placeholder="Tìm kiếm file..." oninput="renderGrid()">
+      </div>
+      <select class="fm-sort" id="sortSelect" onchange="renderGrid()">
+        <option value="name-asc">Tên A→Z</option>
+        <option value="name-desc">Tên Z→A</option>
+        <option value="size-desc">Lớn nhất</option>
+        <option value="size-asc">Nhỏ nhất</option>
+        <option value="new">Mới nhất</option>
+      </select>
+      <div class="fm-toolbar-right">
+        <span id="selCount" style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);align-self:center">0 đã chọn</span>
+        <button class="btn-sm" onclick="selectAll()">Chọn tất cả</button>
+        <button class="btn-sm" onclick="clearSel()">Bỏ chọn</button>
+        <button class="btn-gh" id="delSelBtn" onclick="confirmDelete()" style="display:none">🗑 Xóa đã chọn</button>
+        <button class="btn-sm" onclick="loadFiles()" title="Tải lại">↺ Tải lại</button>
+      </div>
+    </div>
+
+    <!-- GRID -->
+    <div class="fm-grid" id="fmGrid">
+      <!-- skeleton loading -->
+      <div class="fm-card skeleton" style="aspect-ratio:1;border-radius:var(--radius-lg)"></div>
+      <div class="fm-card skeleton" style="aspect-ratio:1;border-radius:var(--radius-lg)"></div>
+      <div class="fm-card skeleton" style="aspect-ratio:1;border-radius:var(--radius-lg)"></div>
+      <div class="fm-card skeleton" style="aspect-ratio:1;border-radius:var(--radius-lg)"></div>
+      <div class="fm-card skeleton" style="aspect-ratio:1;border-radius:var(--radius-lg)"></div>
+      <div class="fm-card skeleton" style="aspect-ratio:1;border-radius:var(--radius-lg)"></div>
+    </div>
+
+  </div><!-- /fmContent -->
+
+</div><!-- /main -->
+</div><!-- /wrapper -->
+
+<!-- PREVIEW MODAL -->
+<div class="modal-overlay" id="previewModal" onclick="closeModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle"></span>
+      <button class="modal-close" onclick="closePreview()">✕</button>
+    </div>
+    <img id="modalImg" class="modal-img" src="" alt="">
+    <div class="modal-footer">
+      <span class="modal-meta" id="modalMeta"></span>
+      <a id="modalRawBtn" href="#" target="_blank" class="btn-sm">🔗 Raw URL</a>
+      <button class="btn-sm" id="modalCopyBtn" onclick="copyModalUrl()">Copy URL</button>
+      <button class="btn-sm" style="color:#ff8888" onclick="deleteModalFile()">🗑 Xóa</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="del-confirm" id="delConfirm">
+  <div class="del-box">
+    <h5>⚠️ Xác nhận xóa</h5>
+    <p>Bạn sắp xóa <span class="del-count" id="delCount">0</span> file khỏi GitHub repo.<br>Hành động này <strong>không thể hoàn tác</strong>.</p>
+    <div style="display:flex;gap:.6rem;justify-content:center">
+      <button class="btn-gh" onclick="hideDelConfirm()">Hủy</button>
+      <button class="btn-g" id="delExecBtn" onclick="execDelete()" style="background:rgba(255,80,80,.15);border:1px solid rgba(255,80,80,.4);color:#ff8888">🗑 Xóa ngay</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ─── STATE ─────────────────────────────────────────── */
+let allFiles   = [];
+let selected   = new Set();  // set of file.path
+let previewFile = null;
+
+const isImg = name => /\.(png|jpg|jpeg|gif|webp|svg|bmp)$/i.test(name);
+const fmtSize = b => b < 1024 ? `${b}B` : b < 1048576 ? `${(b/1024).toFixed(1)}KB` : `${(b/1048576).toFixed(2)}MB`;
+
+/* ─── INIT ───────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', async () => {
+  // Kiểm tra query param lỗi từ OAuth callback
+  const params = new URLSearchParams(location.search);
+  const err = params.get('error');
+  if (err) {
+    const msgs = {
+      no_code     : 'GitHub không trả về code. Thử lại.',
+      token_failed: 'Không thể lấy access token từ GitHub.',
+      not_admin   : 'Tài khoản này không phải Admin được cấu hình.',
+      server_error: 'Lỗi server trong quá trình xác thực.',
+    };
+    showErr(msgs[err] || `Lỗi xác thực: ${err}`);
+    history.replaceState(null, '', '/filemanager.html');
+  }
+
+  await checkAuth();
+});
+
+async function checkAuth() {
+  try {
+    const res  = await fetch('/auth/me');
+    const data = await res.json();
+    if (data.loggedIn) {
+      showUserChip(data);
+      showFmContent();
+      loadFiles();
+      loadStats();
+    } else {
+      showLogin();
+    }
+  } catch (e) {
+    showErr('Không thể kết nối server: ' + e.message);
+    showLogin();
+  }
+}
+
+/* ─── UI STATES ──────────────────────────────────────── */
+function showLogin() {
+  document.getElementById('loginWrap').style.display  = '';
+  document.getElementById('fmContent').style.display  = 'none';
+
+  // Kiểm tra OAuth có cấu hình không
+  fetch('/auth/github').then(r => {
+    if (r.url.includes('localhost') || r.status === 500) {
+      document.getElementById('oauthConfigWarn').style.display = '';
+    }
+  }).catch(() => {});
+}
+
+function showFmContent() {
+  document.getElementById('loginWrap').style.display  = 'none';
+  document.getElementById('fmContent').style.display  = '';
+}
+
+function showUserChip(user) {
+  const chip = document.getElementById('userChip');
+  chip.style.display = '';
+  chip.innerHTML = `
+    <div class="user-chip">
+      <img src="${user.avatar}" class="user-avatar" alt="">
+      <span>${user.login}</span>
+      <button onclick="logout()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.7rem;padding:0 0 0 .3rem;" title="Đăng xuất">✕</button>
+    </div>
+  `;
+}
+
+function showErr(msg) {
+  const el = document.getElementById('errBanner');
+  el.textContent = '❌ ' + msg;
+  el.classList.add('on');
+  setTimeout(() => el.classList.remove('on'), 6000);
+}
+
+/* ─── LOGOUT ─────────────────────────────────────────── */
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST' });
+  document.getElementById('userChip').style.display = 'none';
+  allFiles = []; selected.clear();
+  showLogin();
+  toast('👋 Đã đăng xuất');
+}
+
+/* ─── LOAD FILES ─────────────────────────────────────── */
+async function loadFiles() {
+  document.getElementById('fmGrid').innerHTML = `
+    ${Array(6).fill('<div class="fm-card skeleton" style="aspect-ratio:1;border-radius:var(--radius-lg)"></div>').join('')}
+  `;
+  selected.clear(); updateSelUI();
+
+  try {
+    const res  = await fetch('/api/fm/files');
+    if (res.status === 401) { showLogin(); return; }
+    if (!res.ok) { const j = await res.json(); showErr(j.error); return; }
+    const data = await res.json();
+    allFiles   = data.files || [];
+    renderGrid();
+  } catch (e) {
+    showErr('Lỗi tải danh sách file: ' + e.message);
+    document.getElementById('fmGrid').innerHTML = '<div class="fm-empty"><span class="em-ic">⚠️</span>Không thể tải file</div>';
+  }
+}
+
+async function loadStats() {
+  try {
+    const res  = await fetch('/api/fm/stats');
+    if (!res.ok) return;
+    const data = await res.json();
+    document.getElementById('statFolder').innerHTML = data.folder || '—';
+    document.getElementById('statFolder').classList.remove('skeleton');
+    document.getElementById('statCount').textContent  = data.fileCount ?? '—';
+    document.getElementById('statSize').textContent   = fmtSize(data.totalSize || 0);
+    document.getElementById('statBranch').textContent = data.branch || '—';
+  } catch (e) { /* ignore */ }
+}
+
+/* ─── RENDER GRID ────────────────────────────────────── */
+function renderGrid() {
+  const q    = document.getElementById('searchInput').value.toLowerCase().trim();
+  const sort = document.getElementById('sortSelect').value;
+
+  let files = allFiles.filter(f => !q || f.name.toLowerCase().includes(q));
+
+  if (sort === 'name-asc')  files.sort((a,b) => a.name.localeCompare(b.name));
+  if (sort === 'name-desc') files.sort((a,b) => b.name.localeCompare(a.name));
+  if (sort === 'size-desc') files.sort((a,b) => b.size - a.size);
+  if (sort === 'size-asc')  files.sort((a,b) => a.size - b.size);
+  if (sort === 'new')       files = files.slice().reverse();
+
+  const grid = document.getElementById('fmGrid');
+  if (!files.length) {
+    grid.innerHTML = `<div class="fm-empty"><span class="em-ic">📭</span>${q ? 'Không tìm thấy file nào.' : 'Thư mục trống — hãy upload ảnh qua trang WaterMark.'}</div>`;
+    return;
+  }
+
+  grid.innerHTML = files.map(f => {
+    const sel   = selected.has(f.path);
+    const image = isImg(f.name);
+    return `
+      <div class="fm-card${sel ? ' selected' : ''}" data-path="${f.path}" onclick="toggleSelect(event,'${f.path}')" ondblclick="openPreview('${f.path}')">
+        <div class="fm-check">${sel ? '✓' : ''}</div>
+        ${image
+          ? `<img class="fm-thumb" src="${f.rawUrl}" alt="${f.name}" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='flex'">`
+          : ''
+        }
+        <div class="fm-thumb-placeholder" style="${image ? 'display:none' : ''}">📄</div>
+        <div class="fm-info">
+          <div class="fm-name" title="${f.name}">${f.name}</div>
+          <div class="fm-meta">${fmtSize(f.size)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ─── SELECT ─────────────────────────────────────────── */
+function toggleSelect(e, path) {
+  // Double click → openPreview (handled separately), single click → select
+  if (e.detail === 2) return;
+  selected.has(path) ? selected.delete(path) : selected.add(path);
+  updateSelUI();
+
+  // Update card style without full re-render
+  const card = document.querySelector(`[data-path="${CSS.escape(path)}"]`);
+  if (card) {
+    card.classList.toggle('selected', selected.has(path));
+    const chk = card.querySelector('.fm-check');
+    if (chk) chk.textContent = selected.has(path) ? '✓' : '';
+  }
+}
+
+function updateSelUI() {
+  const n = selected.size;
+  document.getElementById('selCount').textContent  = `${n} đã chọn`;
+  document.getElementById('delSelBtn').style.display = n ? '' : 'none';
+}
+
+function selectAll() {
+  allFiles.forEach(f => selected.add(f.path));
+  updateSelUI(); renderGrid();
+}
+function clearSel() {
+  selected.clear();
+  updateSelUI(); renderGrid();
+}
+
+/* ─── PREVIEW ────────────────────────────────────────── */
+function openPreview(path) {
+  const file = allFiles.find(f => f.path === path);
+  if (!file) return;
+  previewFile = file;
+  document.getElementById('modalTitle').textContent = file.name;
+  document.getElementById('modalImg').src    = file.rawUrl;
+  document.getElementById('modalMeta').textContent = `${fmtSize(file.size)}  ·  ${file.name}`;
+  const rawBtn = document.getElementById('modalRawBtn');
+  rawBtn.href  = file.rawUrl;
+  document.getElementById('previewModal').classList.add('on');
+}
+
+function closePreview() {
+  document.getElementById('previewModal').classList.remove('on');
+  setTimeout(() => { document.getElementById('modalImg').src = ''; }, 300);
+  previewFile = null;
+}
+
+function closeModal(e) {
+  if (e.target.id === 'previewModal') closePreview();
+}
+
+async function copyModalUrl() {
+  if (!previewFile) return;
+  await navigator.clipboard.writeText(previewFile.rawUrl);
+  const btn = document.getElementById('modalCopyBtn');
+  btn.textContent = '✓ Đã copy';
+  setTimeout(() => btn.textContent = 'Copy URL', 1600);
+}
+
+function deleteModalFile() {
+  if (!previewFile) return;
+  closePreview();
+  selected.clear();
+  selected.add(previewFile.path);
+  updateSelUI();
+  confirmDelete();
+}
+
+/* ─── DELETE ─────────────────────────────────────────── */
+function confirmDelete() {
+  if (!selected.size) return;
+  document.getElementById('delCount').textContent = selected.size;
+  document.getElementById('delConfirm').classList.add('on');
+}
+function hideDelConfirm() {
+  document.getElementById('delConfirm').classList.remove('on');
+}
+
+async function execDelete() {
+  const btn = document.getElementById('delExecBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Đang xóa…';
+
+  const toDelete = allFiles.filter(f => selected.has(f.path));
+  let ok = 0, fail = 0;
+
+  for (const file of toDelete) {
+    try {
+      const res = await fetch('/api/fm/file', {
+        method : 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ path: file.path, sha: file.sha }),
+      });
+      if (res.ok) { ok++; allFiles = allFiles.filter(f => f.path !== file.path); }
+      else { fail++; const j = await res.json().catch(() => ({})); console.error('Delete fail:', j); }
+    } catch (e) { fail++; }
+  }
+
+  selected.clear();
+  hideDelConfirm();
+  btn.disabled = false;
+  btn.textContent = '🗑 Xóa ngay';
+  updateSelUI();
+  renderGrid();
+  loadStats();
+
+  if (fail) showErr(`Xóa thất bại ${fail} file. Kiểm tra lại quyền GH_TOKEN.`);
+  else toast(`✅ Đã xóa ${ok} file`);
+}
+
+/* ─── TOAST ──────────────────────────────────────────── */
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('on');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('on'), 2600);
+}
+
+/* ─── KEYBOARD ───────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closePreview(); hideDelConfirm(); }
+  if (e.key === 'Delete' && selected.size && !document.getElementById('delConfirm').classList.contains('on')) confirmDelete();
+});
+</script>
+</body>
+</html>

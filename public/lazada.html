@@ -6,232 +6,19 @@
 <title>Lazada Affiliate – Chuyển đổi link</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
 <style>
+/* Lazada page — override accent to orange */
 :root {
-  --bg: #09090f;
-  --surface: #12121a;
-  --card: #1a1a25;
-  --border: #252535;
-  --accent: #f0a030;
+  --accent:  #f0a030;
   --accent2: #ff6b35;
-  --text: #e2e2ee;
-  --muted: #5a5a7a;
-}
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { width: 100%; overflow-x: hidden; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Syne', sans-serif;
-  min-height: 100vh;
 }
 body::before {
-  content: '';
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background-image:
     linear-gradient(rgba(240,160,48,.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(240,160,48,.03) 1px, transparent 1px);
-  background-size: 44px 44px;
 }
-.wrapper { position: relative; z-index: 1; }
-
-/* HEADER */
-header {
-  position: sticky; top: 0; z-index: 200;
-  background: rgba(9,9,15,.93);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--border);
-  padding: .8rem 1.2rem;
-  display: flex; align-items: center; gap: .75rem;
-}
-.logo-hex {
-  flex-shrink: 0; width: 32px; height: 32px;
-  background: var(--accent);
-  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
-  display: grid; place-items: center;
-  font-size: .65rem; font-weight: 800; color: #000;
-}
-.logo-name { font-size: .95rem; font-weight: 800; letter-spacing: -.02em; white-space: nowrap; }
-.logo-name em { color: var(--accent); font-style: normal; }
-.badge-v {
-  font-family: 'DM Mono', monospace; font-size: .55rem;
-  background: var(--accent); color: #000;
-  padding: 2px 6px; border-radius: 3px; font-weight: 600;
-}
-.hdr-nav {
-  margin-left: auto;
-  display: flex; gap: .5rem;
-}
-.nav-link-btn {
-  font-family: 'DM Mono', monospace; font-size: .6rem;
-  color: var(--muted); text-decoration: none;
-  padding: .25rem .6rem; border-radius: 5px;
-  border: 1px solid var(--border);
-  transition: all .2s;
-}
-.nav-link-btn:hover, .nav-link-btn.active {
-  color: var(--accent); border-color: var(--accent);
-  background: rgba(240,160,48,.07);
-}
-
-/* MAIN */
-.main { max-width: 860px; margin: 0 auto; padding: 1.8rem 1rem 3rem; }
-
-.step {
-  font-family: 'DM Mono', monospace;
-  font-size: .58rem; letter-spacing: .18em;
-  color: var(--accent); text-transform: uppercase;
-  margin-bottom: .4rem;
-}
-
-/* CARD */
-.cc {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.1rem 1.2rem;
-  margin-bottom: 1.2rem;
-}
-
-/* TEXTAREA */
-.ta {
-  width: 100%; background: var(--surface);
-  border: 1px solid var(--border); border-radius: 8px;
-  color: var(--text); font-family: 'DM Mono', monospace; font-size: .72rem;
-  padding: .65rem .8rem; resize: vertical; outline: none;
-  transition: border-color .2s;
-  line-height: 1.7;
-}
-.ta:focus { border-color: var(--accent); }
-.ta::placeholder { color: var(--muted); }
-
-/* BUTTONS */
-.btn-g {
-  background: var(--accent); color: #000;
-  border: none; border-radius: 8px;
-  font-family: 'Syne', sans-serif; font-weight: 700; font-size: .82rem;
-  padding: .65rem 1.4rem; cursor: pointer;
-  transition: all .2s;
-}
-.btn-g:hover { box-shadow: 0 6px 20px rgba(240,160,48,.35); transform: translateY(-1px); }
-.btn-g:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
-.btn-sm {
-  background: transparent; color: var(--muted);
-  border: 1px solid var(--border); border-radius: 6px;
-  font-family: 'DM Mono', monospace; font-size: .6rem;
-  padding: .25rem .7rem; cursor: pointer;
-  transition: all .18s;
-}
-.btn-sm:hover { color: var(--accent); border-color: var(--accent); }
-.btn-sm.ok { color: #7cffb0; border-color: #7cffb0; }
-
-/* STATUS */
-.status-box {
-  font-family: 'DM Mono', monospace; font-size: .64rem;
-  margin-top: .6rem; padding: .35rem .7rem; border-radius: 6px;
-  display: none;
-}
-.status-box.ok  { background: rgba(128,255,176,.08); color: #7cffb0; border: 1px solid rgba(128,255,176,.2); display:block; }
-.status-box.err { background: rgba(255,100,100,.08); color: #ff8888; border: 1px solid rgba(255,100,100,.2); display:block; }
-.status-box.info { background: rgba(96,192,240,.08); color: #80d8f0; border: 1px solid rgba(96,192,240,.2); display:block; }
-
-/* PROGRESS */
-.prog-wrap { display:none; margin-top: .6rem; }
-.prog-wrap.on { display:block; }
-.prog-label {
-  display: flex; justify-content: space-between;
-  font-family: 'DM Mono', monospace; font-size: .6rem; color: var(--muted);
-  margin-bottom: .3rem;
-}
-.prog-track { height: 5px; border-radius: 99px; background: rgba(255,255,255,.07); overflow:hidden; }
-.prog-bar {
-  height: 100%; width: 0%; border-radius: 99px;
-  background: linear-gradient(90deg, #f0a030, #ffcc80);
-  transition: width .25s ease;
-}
-
-/* RESULT TABLE */
-.result-wrap { display:none; margin-top:1.2rem; }
-.result-wrap.on { display:block; }
-
-.result-head {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: .7rem;
-}
-.result-title {
-  font-family: 'DM Mono', monospace; font-size: .62rem;
-  color: var(--accent); text-transform: uppercase; letter-spacing: .1em;
-}
-.result-actions { display:flex; gap:.4rem; }
-
-.result-list { display:flex; flex-direction:column; gap:.65rem; }
-
-.result-item {
-  background: var(--surface);
-  border: 1px solid var(--border); border-radius: 10px;
-  padding: .85rem 1rem;
-}
-.result-item.has-err { border-color: rgba(255,100,100,.3); }
-
-.ri-label {
-  font-family: 'DM Mono', monospace; font-size: .55rem;
-  color: var(--muted); text-transform: uppercase; letter-spacing: .1em;
-  margin-bottom: .2rem;
-}
-.ri-url {
-  font-family: 'DM Mono', monospace; font-size: .67rem;
-  color: var(--text); word-break: break-all; line-height: 1.5;
-  margin-bottom: .55rem;
-}
-.ri-url a { color: var(--accent2); text-decoration: none; }
-.ri-url a:hover { text-decoration: underline; }
-.ri-err { color: #ff8888; font-family: 'DM Mono', monospace; font-size: .64rem; }
-
-.ri-row {
-  display:flex; align-items:flex-start; gap:.6rem;
-  margin-bottom:.4rem;
-}
-.ri-row:last-child { margin-bottom:0; }
-.ri-val {
-  flex:1; font-family:'DM Mono',monospace; font-size:.67rem;
-  color: var(--accent); word-break:break-all; line-height:1.5;
-}
-.ri-val a { color: var(--accent); text-decoration:none; }
-.ri-val a:hover { text-decoration:underline; }
-.ri-val.empty { color: var(--muted); font-style:italic; }
-
-.divider { height:1px; background:var(--border); margin: .65rem 0; }
-
-/* COUNTER */
-.url-counter {
-  font-family: 'DM Mono', monospace; font-size: .6rem;
-  color: var(--muted); margin-top: .3rem; text-align:right;
-}
-
-/* TOAST */
-.toast-box {
-  position: fixed; bottom: 1.1rem; right: 1.1rem; z-index: 9999;
-  background: #1a1508; border: 1px solid #7a5a1e; color: #ffcc80;
-  padding: .55rem 1rem; border-radius: 8px;
-  font-family: 'DM Mono', monospace; font-size: .76rem;
-  opacity: 0; transform: translateY(60px);
-  transition: all .28s cubic-bezier(.34,1.56,.64,1);
-  pointer-events: none;
-}
-.toast-box.on { opacity:1; transform:translateY(0); }
-
-/* TIPS */
-.tip-box {
-  background: rgba(240,160,48,.05);
-  border: 1px solid rgba(240,160,48,.15);
-  border-radius: 8px; padding: .65rem .9rem;
-  font-family: 'DM Mono', monospace; font-size: .64rem;
-  color: var(--muted); line-height: 1.7;
-  margin-bottom: 1.2rem;
-}
-.tip-box strong { color: var(--accent); }
+.toast-box { background: #1a1508; border-color: #7a5a1e; color: #ffcc80; }
 </style>
 </head>
 <body>
@@ -241,45 +28,48 @@ header {
 <header>
   <div class="logo-hex">L</div>
   <div class="logo-name">Lazada <em>Affiliate</em></div>
-  <span class="badge-v">v1.0</span>
+  <span class="badge-v">v4.0</span>
   <nav class="hdr-nav">
-    <a href="/index.html" class="nav-link-btn">🖼 WaterMark</a>
-    <a href="/lazada.html" class="nav-link-btn active">🔗 Lazada</a>
+    <a href="/index.html"       class="nav-btn">🖼 <span class="nav-text">WaterMark</span></a>
+    <a href="/lazada.html"      class="nav-btn active">🔗 <span class="nav-text">Lazada</span></a>
+    <a href="/filemanager.html" class="nav-btn">📁 <span class="nav-text">File Manager</span></a>
   </nav>
 </header>
 
 <!-- MAIN -->
 <div class="main">
 
-  <div class="step">01 / Kiểm tra kết nối</div>
-  <div class="cc" style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">
-    <div style="flex:1;min-width:0">
-      <div style="font-size:.8rem;font-weight:700;margin-bottom:.2rem">Lazada OpenAPI</div>
-      <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted)">
-        Credentials được cấu hình qua <strong style="color:var(--text)">Environment Variables</strong> trên Render
+  <!-- STEP 1 — CONNECT -->
+  <div class="step">01 / Kết nối API</div>
+  <div class="cc">
+    <div class="connect-row">
+      <div class="connect-info">
+        <h6>Lazada OpenAPI</h6>
+        <p>Credentials cấu hình qua <strong style="color:var(--text)">Environment Variables</strong> trên Render</p>
       </div>
+      <button class="btn-sm" id="btnTest" onclick="testToken()">🔌 Test kết nối</button>
     </div>
-    <button class="btn-sm" id="btnTest" onclick="testToken()">🔌 Test kết nối</button>
-    <div class="status-box" id="statusBox" style="width:100%;margin-top:0"></div>
+    <div class="status-box" id="statusBox"></div>
   </div>
 
+  <!-- STEP 2 — INPUT -->
   <div class="step">02 / Nhập link Lazada</div>
 
   <div class="tip-box">
-    💡 Mỗi dòng một URL · Tối đa <strong>50 link</strong> mỗi lần · Hỗ trợ link sản phẩm, shop, campaign
+    💡 Mỗi dòng một URL &nbsp;·&nbsp; Tối đa <strong>50 link</strong> mỗi lần &nbsp;·&nbsp; Hỗ trợ link sản phẩm, shop, campaign
   </div>
 
   <div class="cc">
-    <textarea class="ta" id="urlInput" rows="8"
+    <textarea class="ta" id="urlInput" rows="7"
       placeholder="https://www.lazada.vn/products/...
 https://www.lazada.vn/shop/...
 https://s.lazada.vn/s.xxxxxxxx"></textarea>
     <div class="url-counter" id="urlCounter">0 URL</div>
 
-    <div style="display:flex;gap:.6rem;margin-top:.8rem;flex-wrap:wrap;align-items:center">
+    <div class="action-row">
       <button class="btn-g" id="btnConvert" onclick="convertLinks()">⚡ Chuyển đổi Affiliate</button>
+      <button class="btn-sm" onclick="pasteClipboard()">📋 Dán</button>
       <button class="btn-sm" onclick="clearAll()">↺ Xoá</button>
-      <button class="btn-sm" onclick="pasteClipboard()">📋 Dán từ clipboard</button>
     </div>
 
     <div class="prog-wrap" id="progWrap">
@@ -296,7 +86,7 @@ https://s.lazada.vn/s.xxxxxxxx"></textarea>
     <div class="result-head">
       <div class="result-title" id="resultTitle">Kết quả</div>
       <div class="result-actions">
-        <button class="btn-sm" onclick="copyAllAff()">📋 Copy tất cả link affiliate</button>
+        <button class="btn-sm" onclick="copyAllAff()">📋 Copy tất cả affiliate</button>
         <button class="btn-sm" onclick="copyAllShort()">📋 Copy tất cả short link</button>
       </div>
     </div>
@@ -311,20 +101,19 @@ https://s.lazada.vn/s.xxxxxxxx"></textarea>
 <script>
 let lastResults = [];
 
-/* ─── COUNTER ──────────────────────────────────────── */
+/* ── COUNTER ── */
 document.getElementById('urlInput').addEventListener('input', updateCounter);
 function updateCounter() {
-  const lines = getUrls();
-  document.getElementById('urlCounter').textContent = `${lines.length} URL`;
+  const n = getUrls().length;
+  document.getElementById('urlCounter').textContent = `${n} URL`;
 }
 function getUrls() {
   return document.getElementById('urlInput').value
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l.length > 0 && (l.startsWith('http://') || l.startsWith('https://')));
+    .split('\n').map(l => l.trim())
+    .filter(l => l.startsWith('http://') || l.startsWith('https://'));
 }
 
-/* ─── TEST TOKEN ───────────────────────────────────── */
+/* ── TEST TOKEN ── */
 async function testToken() {
   const btn = document.getElementById('btnTest');
   btn.textContent = '⏳…'; btn.disabled = true;
@@ -335,7 +124,7 @@ async function testToken() {
     if (json.ok) {
       setStatus('ok', json.message || '✅ Kết nối Lazada thành công');
     } else {
-      setStatus('err', `❌ ${json.error || 'Token không hợp lệ'}`);
+      setStatus('err', `❌ ${json.error || 'Token không hợp lệ'}${json.hint ? ' · ' + json.hint : ''}`);
     }
   } catch(e) {
     setStatus('err', `❌ Không kết nối được server: ${e.message}`);
@@ -343,7 +132,7 @@ async function testToken() {
   btn.textContent = '🔌 Test kết nối'; btn.disabled = false;
 }
 
-/* ─── CONVERT ──────────────────────────────────────── */
+/* ── CONVERT ── */
 async function convertLinks() {
   const urls = getUrls();
   if (!urls.length) { toast('⚠️ Chưa nhập URL nào'); return; }
@@ -353,7 +142,6 @@ async function convertLinks() {
   setStatus('info', `⏳ Đang chuyển đổi ${urls.length} link…`);
   showProgress(urls.length);
 
-  // Xử lý theo batch 10 để tránh timeout
   const BATCH = 10;
   const allResults = [];
   let done = 0;
@@ -392,10 +180,10 @@ async function convertLinks() {
   }
 }
 
-/* ─── RENDER RESULTS ───────────────────────────────── */
+/* ── RENDER ── */
 function renderResults(results) {
-  const wrap = document.getElementById('resultWrap');
-  const list = document.getElementById('resultList');
+  const wrap  = document.getElementById('resultWrap');
+  const list  = document.getElementById('resultList');
   const title = document.getElementById('resultTitle');
 
   const ok  = results.filter(r => !r.error).length;
@@ -406,32 +194,27 @@ function renderResults(results) {
     if (r.error) {
       return `<div class="result-item has-err">
         <div class="ri-label">❌ Lỗi · #${i+1}</div>
-        <div class="ri-url">${escHtml(r.original)}</div>
-        <div class="ri-err">${escHtml(r.error)}</div>
+        <div class="ri-url">${esc(r.original)}</div>
+        <div class="ri-err">${esc(r.error)}</div>
       </div>`;
     }
     const hasShort = r.short && r.short !== r.affiliate;
     return `<div class="result-item">
       <div class="ri-label">Link gốc · #${i+1}</div>
-      <div class="ri-url"><a href="${escHtml(r.original)}" target="_blank">${escHtml(r.original)}</a></div>
+      <div class="ri-url">${esc(r.original)}</div>
 
       <div class="ri-label">🔗 Affiliate URL</div>
       <div class="ri-row">
         <div class="ri-val${r.affiliate ? '' : ' empty'}">
-          ${r.affiliate
-            ? `<a href="${escHtml(r.affiliate)}" target="_blank">${escHtml(r.affiliate)}</a>`
-            : '—'}
+          ${r.affiliate ? `<a href="${esc(r.affiliate)}" target="_blank">${esc(r.affiliate)}</a>` : '—'}
         </div>
-        ${r.affiliate ? `<button class="btn-sm" onclick="copyText('${escAttr(r.affiliate)}',this)">Copy</button>` : ''}
+        ${r.affiliate ? `<button class="btn-sm" onclick="copyText('${ea(r.affiliate)}',this)">Copy</button>` : ''}
       </div>
-
       ${hasShort ? `
-      <div class="ri-label" style="margin-top:.45rem">⚡ Short link</div>
+      <div class="ri-label" style="margin-top:.4rem">⚡ Short link</div>
       <div class="ri-row">
-        <div class="ri-val">
-          <a href="${escHtml(r.short)}" target="_blank">${escHtml(r.short)}</a>
-        </div>
-        <button class="btn-sm" onclick="copyText('${escAttr(r.short)}',this)">Copy</button>
+        <div class="ri-val"><a href="${esc(r.short)}" target="_blank">${esc(r.short)}</a></div>
+        <button class="btn-sm" onclick="copyText('${ea(r.short)}',this)">Copy</button>
       </div>` : ''}
     </div>`;
   }).join('');
@@ -439,11 +222,11 @@ function renderResults(results) {
   wrap.classList.add('on');
 }
 
-/* ─── COPY HELPERS ─────────────────────────────────── */
+/* ── COPY ── */
 function copyText(text, btn) {
   navigator.clipboard.writeText(text).then(() => {
     const orig = btn.textContent;
-    btn.textContent = '✓ OK'; btn.classList.add('ok');
+    btn.textContent = '✓'; btn.classList.add('ok');
     setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 1600);
   });
 }
@@ -458,10 +241,9 @@ function copyAllShort() {
   navigator.clipboard.writeText(links).then(() => toast(`✅ Đã copy ${links.split('\n').length} short link`));
 }
 
-/* ─── PROGRESS ─────────────────────────────────────── */
+/* ── PROGRESS ── */
 function showProgress(total) {
-  const wrap = document.getElementById('progWrap');
-  wrap.classList.add('on');
+  document.getElementById('progWrap').classList.add('on');
   document.getElementById('progBar').style.width = '0%';
   document.getElementById('progCount').textContent = `0 / ${total}`;
   document.getElementById('progText').textContent = 'Đang xử lý…';
@@ -472,25 +254,24 @@ function updateProgress(done, total) {
   if (done === total) document.getElementById('progText').textContent = 'Hoàn tất ✓';
 }
 
-/* ─── STATUS ───────────────────────────────────────── */
+/* ── STATUS ── */
 function setStatus(type, msg) {
   const el = document.getElementById('statusBox');
   el.className = `status-box ${type}`;
   el.textContent = msg;
 }
 
-/* ─── UTILS ────────────────────────────────────────── */
+/* ── UTILS ── */
 async function safeJson(res) {
   const text = await res.text();
   try { return JSON.parse(text); }
-  catch(_) { throw new Error(`Server trả về lỗi (HTTP ${res.status})`); }
+  catch(_) { throw new Error(`Server trả lỗi HTTP ${res.status}`); }
 }
-function escHtml(s) {
+function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function escAttr(s) {
-  return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
-}
+function ea(s) { return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+
 function clearAll() {
   document.getElementById('urlInput').value = '';
   document.getElementById('urlCounter').textContent = '0 URL';
@@ -506,9 +287,7 @@ async function pasteClipboard() {
     ta.value = (ta.value ? ta.value + '\n' : '') + text;
     updateCounter();
     toast('✅ Đã dán từ clipboard');
-  } catch(_) {
-    toast('⚠️ Không đọc được clipboard');
-  }
+  } catch(_) { toast('⚠️ Không đọc được clipboard'); }
 }
 function toast(msg) {
   const el = document.getElementById('toast');

@@ -1,6 +1,7 @@
-# WaterMark Pro 🖼️
+# WaterMark Pro 🖼️ v4.0
 
 Đóng dấu ảnh hàng loạt, push lên GitHub, lấy raw URL dùng ngay.
+Kèm **File Manager** — duyệt, xem trước, xóa ảnh trong GitHub repo.
 
 > Chỉ hỗ trợ **public repo**. Token cần scope **`public_repo`**.
 
@@ -18,7 +19,13 @@ npm install
 
 **3. Tạo repo public** trên GitHub (cần ít nhất 1 commit)
 
-**4. Cấu hình `.env`**
+**4. Tạo GitHub OAuth App** (cho File Manager)
+→ [github.com/settings/developers](https://github.com/settings/developers) → New OAuth App
+- Homepage URL: `http://localhost:3000`
+- Callback URL: `http://localhost:3000/auth/github/callback`
+- (Trên Render thay `localhost:3000` bằng URL thật)
+
+**5. Cấu hình `.env`**
 ```bash
 cp .env.example .env
 ```
@@ -28,9 +35,15 @@ GH_REPO=my-images
 GH_BRANCH=main
 GH_FOLDER=img
 GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+
+GITHUB_CLIENT_ID=your_oauth_app_client_id
+GITHUB_CLIENT_SECRET=your_oauth_app_client_secret
+GITHUB_ADMIN_USERNAME=your_github_username
+
+SESSION_SECRET=random_long_secret_string
 ```
 
-**5. Chạy**
+**6. Chạy**
 ```bash
 npm run dev   # development
 npm start     # production
@@ -39,12 +52,24 @@ npm start     # production
 
 ---
 
+## File Manager
+
+Truy cập `/filemanager.html`:
+1. Nhấn **Đăng nhập với GitHub** → xác thực OAuth
+2. Chỉ tài khoản khớp `GITHUB_ADMIN_USERNAME` mới vào được
+3. Duyệt ảnh dạng grid · Preview · Copy URL · Xóa file
+4. Chọn nhiều file → Xóa hàng loạt
+5. Tìm kiếm & sắp xếp
+
+---
+
 ## Deploy lên Render
 
 1. Push code lên GitHub (không push `.env`)
 2. Tạo Web Service → Build: `npm install` · Start: `npm start`
-3. Thêm Environment Variables (5 biến trong `.env`)
-4. Deploy ✅
+3. Thêm Environment Variables (tất cả biến trong `.env`)
+4. Cập nhật Callback URL trong GitHub OAuth App thành URL Render thật
+5. Deploy ✅
 
 ---
 
@@ -54,11 +79,9 @@ npm start     # production
 |-----|------------|
 | `Repo là private` | GitHub Settings → Make public |
 | `Token không hợp lệ` | Tạo token mới, scope `public_repo` |
-| `Token không có quyền ghi` | Chọn lại scope `public_repo` khi tạo token |
-| `Repo không tồn tại` | Kiểm tra GH_OWNER, GH_REPO trong `.env` |
-| `Branch không tồn tại` | Đặt GH_BRANCH là `main` hoặc `master` |
-
-Nhấn **🔌 Test** trong app để kiểm tra cấu hình trước khi push.
+| `Chưa cấu hình GITHUB_CLIENT_ID` | Thêm biến vào `.env` |
+| `Tài khoản không phải Admin` | Cập nhật `GITHUB_ADMIN_USERNAME` |
+| `Callback URL mismatch` | Cập nhật OAuth App callback URL |
 
 ---
 
@@ -66,9 +89,14 @@ Nhấn **🔌 Test** trong app để kiểm tra cấu hình trước khi push.
 
 ```
 watermark-pro/
-├── public/index.html   # UI (HTML + CSS + JS)
-├── server.js           # Express + GitHub API proxy
-├── .env                # Cấu hình local (không commit)
+├── public/
+│   ├── index.html        # WaterMark UI
+│   ├── lazada.html       # Lazada Affiliate
+│   ├── filemanager.html  # File Manager (mới v4.0)
+│   └── style.css         # Shared design system
+├── server.js             # Express + GitHub API + OAuth
+├── lazada-api.js         # Lazada OpenAPI routes
+├── .env                  # Cấu hình local (không commit)
 ├── .env.example
 └── package.json
 ```
