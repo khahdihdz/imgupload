@@ -311,6 +311,28 @@ input[type=color] {
 .gh-status.ok  { background: rgba(128,255,176,.1); color: #7cffb0; border: 1px solid rgba(128,255,176,.2); display:block; }
 .gh-status.err { background: rgba(255,100,100,.1); color: #ff8888; border: 1px solid rgba(255,100,100,.2); display:block; }
 
+/* PROGRESS BAR */
+.gh-progress-wrap {
+  display: none; margin-top: .55rem;
+}
+.gh-progress-wrap.on { display: block; }
+.gh-progress-label {
+  font-family: 'DM Mono', monospace; font-size: .62rem;
+  color: #aaa; margin-bottom: .3rem;
+  display: flex; justify-content: space-between;
+}
+.gh-progress-track {
+  height: 6px; border-radius: 99px;
+  background: rgba(255,255,255,.08);
+  overflow: hidden;
+}
+.gh-progress-bar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #3ecf8e, #7cffb0);
+  border-radius: 99px;
+  transition: width .3s ease;
+}
+
 /* TOAST */
 .toast {
   position: fixed; bottom: 1.1rem; right: 1.1rem; z-index: 9999;
@@ -409,6 +431,15 @@ input[type=color] {
       </div>
       <div class="gh-status" id="ghStatus"></div>
       <div id="ghHint" style="display:none;margin-top:.4rem;font-size:.68rem;color:#ffb347;font-family:'DM Mono',monospace;padding:.4rem .6rem;background:rgba(255,179,71,.07);border-radius:6px;border:1px solid rgba(255,179,71,.2);line-height:1.5"></div>
+      <div class="gh-progress-wrap" id="ghProgress">
+        <div class="gh-progress-label">
+          <span id="ghProgressText">Đang push…</span>
+          <span id="ghProgressCount">0 / 0</span>
+        </div>
+        <div class="gh-progress-track">
+          <div class="gh-progress-bar" id="ghProgressBar"></div>
+        </div>
+      </div>
     </div>
 
     <div style="display:flex;gap:.6rem;margin-top:.85rem;flex-wrap:wrap">
@@ -515,6 +546,12 @@ document.getElementById('wc').addEventListener('input',function(){
 });
 
 /* ─── GITHUB PUSH (qua server, token không lộ client) */
+function randomFilename() {
+  const ts  = Date.now().toString(36);
+  const rnd = Math.random().toString(36).slice(2, 7);
+  return `img_${ts}${rnd}.png`;
+}
+
 async function ghPush(filename, dataUrl){
   const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
   const res = await fetch('/api/github-push', {
@@ -522,13 +559,42 @@ async function ghPush(filename, dataUrl){
     headers: { 'Content-Type': 'application/json' },
     body   : JSON.stringify({ filename, base64 })
   });
-  const json = await res.json();
+  // Safe JSON parse — tránh lỗi khi server trả HTML (500/404)
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch(_) {
+    throw new Error(`Server trả về lỗi không phải JSON (HTTP ${res.status})`);
+  }
   if (!res.ok) {
     const err = new Error(json.error || res.statusText);
     err.hint = json.hint || '';
     throw err;
   }
-  return json.url; // https://raw.githubusercontent.com/...
+  return json.url;
+}
+
+/* ─── PROGRESS BAR HELPERS ──────────────────────── */
+function progressShow(total) {
+  const wrap = document.getElementById('ghProgress');
+  wrap.classList.add('on');
+  document.getElementById('ghProgressBar').style.width = '0%';
+  document.getElementById('ghProgressCount').textContent = `0 / ${total}`;
+  document.getElementById('ghProgressText').textContent = 'Đang push…';
+}
+function progressUpdate(done, total, hasErr) {
+  const pct = Math.round(done / total * 100);
+  const bar  = document.getElementById('ghProgressBar');
+  bar.style.width = pct + '%';
+  bar.style.background = hasErr
+    ? 'linear-gradient(90deg,#ff6b6b,#ffaaaa)'
+    : 'linear-gradient(90deg,#3ecf8e,#7cffb0)';
+  document.getElementById('ghProgressCount').textContent = `${done} / ${total}`;
+  if (done === total)
+    document.getElementById('ghProgressText').textContent = hasErr ? 'Hoàn tất (có lỗi)' : 'Hoàn tất ✓';
+}
+function progressHide() {
+  document.getElementById('ghProgress').classList.remove('on');
 }
 
 /* ─── DRAG DROP ──────────────────────────────────── */
@@ -681,20 +747,33 @@ function applyWM(){
       wms[i]=oc.toDataURL('image/png');
       wmUrls[i]=null;
       if(i===idx){ CV.width=oc.width; CV.height=oc.height; X.drawImage(oc,0,0); reveal(); setInfo(i,null); }
-      if(++done===files.length) toast(`✅ Đã đóng dấu ${done} ảnh – đang push GitHub...`);
-
-      // Push ảnh WM lên GitHub
-      const fname=`img_${i}_wm.png`;
-      ghPush(fname, wms[i])
-        .then(rawUrl=>{
-          wmUrls[i]=rawUrl;
-          setGhStatus('ok',`✅ Đã lưu ${done} ảnh lên GitHub`);
-          if(i===idx) showOutUrl(i);
-        })
-        .catch(err=>{
-          setGhStatus('err',`❌ Push thất bại: ${err.message}`, err.hint||'');
-          toast(`❌ img_${i}_wm.png lỗi: ${err.message}`);
+      if(++done===files.length){
+        toast(`✅ Đã đóng dấu ${done} ảnh – đang push GitHub...`);
+        // Bắt đầu push tất cả, show progress
+        const total = files.length;
+        let pushed = 0, errCount = 0;
+        progressShow(total);
+        setGhStatus('','');
+        wms.forEach((wm, j) => {
+          if (!wm) { pushed++; progressUpdate(pushed, total, errCount > 0); return; }
+          const fname = randomFilename();
+          ghPush(fname, wm)
+            .then(rawUrl => {
+              wmUrls[j] = rawUrl;
+              pushed++;
+              progressUpdate(pushed, total, errCount > 0);
+              if (j === idx) showOutUrl(j);
+              if (pushed === total && errCount === 0)
+                setGhStatus('ok', `✅ Đã push ${total} ảnh lên GitHub`);
+            })
+            .catch(err => {
+              errCount++; pushed++;
+              progressUpdate(pushed, total, true);
+              setGhStatus('err', `❌ Push thất bại: ${err.message}`, err.hint || '');
+              toast(`❌ Ảnh ${j+1} lỗi: ${err.message}`);
+            });
         });
+      }
     };
     img.src=urls[i];
   });
@@ -747,7 +826,7 @@ function resetAll(){
   PILLS.innerHTML=''; TABS.innerHTML='';
   PH.style.display=''; CW.style.display='none';
   IB.classList.remove('on'); BATCH.style.display='none'; FI.value='';
-  hideOutUrl();
+  hideOutUrl(); progressHide();
   toast('↺ Đã reset');
 }
 
