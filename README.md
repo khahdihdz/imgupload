@@ -4,6 +4,8 @@ Công cụ đóng dấu ảnh hàng loạt, tự động push lên GitHub để 
 
 Built with: **Node.js + Express** · **Canvas API** · **GitHub Contents API** · **Bootstrap 5**
 
+> ⚠️ **Yêu cầu:** Chỉ hỗ trợ **public repo**. Repo private sẽ bị từ chối khi kiểm tra cấu hình.
+
 ---
 
 ## Tính năng
@@ -32,18 +34,16 @@ npm install
 
 1. Vào [https://github.com/settings/tokens](https://github.com/settings/tokens)
 2. Click **"Generate new token (classic)"**
-3. Chọn scope: **`repo`** (private repo) hoặc **`public_repo`** (public repo)
+3. Chọn scope: ✅ **`public_repo`**
 4. Copy token
 
-### 3. Tạo repo GitHub để lưu ảnh
+### 3. Tạo repo GitHub public để lưu ảnh
 
-Tạo một repo mới (public hoặc private) trên GitHub. Ví dụ: `my-images`.
+Tạo một **public repo** mới trên GitHub. Ví dụ: `my-images`.
 
 **Quan trọng:** Repo phải có ít nhất 1 commit (tạo file README khi tạo repo).
 
 ### 4. Cấu hình `.env`
-
-Copy file mẫu và điền thông tin:
 
 ```bash
 cp .env.example .env
@@ -53,10 +53,10 @@ Chỉnh sửa `.env`:
 
 ```env
 GH_OWNER=your_github_username      # Username hoặc org GitHub
-GH_REPO=my-images                  # Tên repo chứa ảnh
+GH_REPO=my-images                  # Tên repo PUBLIC chứa ảnh
 GH_BRANCH=main                     # Branch (mặc định: main)
 GH_FOLDER=img                      # Thư mục trong repo (mặc định: img)
-GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx  # Personal Access Token
+GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx  # Personal Access Token (scope: public_repo)
 
 PORT=3000
 ```
@@ -82,7 +82,7 @@ Mở trình duyệt: [http://localhost:3000](http://localhost:3000)
 3. Chọn repo, cấu hình:
    - **Build Command:** `npm install`
    - **Start Command:** `npm start`
-4. Thêm **Environment Variables** (thay cho `.env`):
+4. Thêm **Environment Variables**:
 
 | Key | Value |
 |-----|-------|
@@ -96,35 +96,17 @@ Mở trình duyệt: [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## Gỡ lỗi: "Push thất bại: Not Found"
+## Gỡ lỗi thường gặp
 
-> ⚠️ **Lưu ý quan trọng về private repo:** GitHub luôn trả về  (thay vì ) khi token thiếu quyền truy cập private repo — để ẩn sự tồn tại của repo. Đây là nguyên nhân phổ biến nhất của lỗi này.
+| Lỗi | Nguyên nhân | Cách xử lý |
+|-----|-------------|------------|
+| `Repo là private` | Repo chưa được đặt là public | GitHub → Settings → Danger Zone → **Make public** |
+| `Token không hợp lệ` | Token hết hạn hoặc sai | Tạo token mới tại [github.com/settings/tokens](https://github.com/settings/tokens) |
+| `Token không có quyền ghi` | Thiếu scope `public_repo` | Tạo lại token, chọn scope **`public_repo`** |
+| `Repo không tồn tại` | GH_OWNER hoặc GH_REPO sai | Kiểm tra chính tả trong `.env` |
+| `Branch không tồn tại` | GH_BRANCH sai | Đặt `main` hoặc `master` |
 
-### Nguyên nhân & cách xử lý
-
-| Nguyên nhân | Cách xử lý |
-|-------------|------------|
-| Token thiếu scope cho **private repo** | Dùng **Classic Token** với scope **** (bao gồm toàn bộ, không chỉ ) |
-| Token Fine-grained thiếu quyền | Vào token → chọn repo → bật **Contents: Read & write** |
-|  hoặc  sai chính tả | Kiểm tra lại trong  |
-| Repo chưa tồn tại | Tạo repo trên GitHub trước, có ít nhất 1 commit |
-| Token hết hạn | Tạo token mới tại [github.com/settings/tokens](https://github.com/settings/tokens) |
-|  sai | Kiểm tra tên branch:  hoặc  |
-
-### Cách tạo token đúng cho private repo
-
-**Classic Token (khuyến nghị, đơn giản hơn):**
-1. Vào https://github.com/settings/tokens → **Generate new token (classic)**
-2. Chọn scope: ✅ **** (toàn bộ — bao gồm private repo)
-3. Click Generate → Copy token vào 
-
-**Fine-grained Token:**
-1. Vào https://github.com/settings/tokens → **Generate new token (fine-grained)**
-2. **Repository access** → chọn đúng repo 
-3. **Permissions → Contents** → chọn **Read and write**
-4. Generate → Copy token vào 
-
-**Cách kiểm tra nhanh:** Nhấn nút **🔌 Test** trong ứng dụng — server sẽ xác minh token và quyền truy cập repo rồi báo lỗi cụ thể.
+**Cách kiểm tra nhanh:** Nhấn nút **🔌 Test** trong ứng dụng — server sẽ xác minh cấu hình và báo lỗi cụ thể.
 
 ---
 
@@ -134,7 +116,7 @@ Mở trình duyệt: [http://localhost:3000](http://localhost:3000)
 watermark-pro/
 ├── public/
 │   └── index.html      # Toàn bộ UI (HTML + CSS + JS)
-├── img/                # Placeholder (ảnh push lên GitHub repo riêng)
+├── img/                # Placeholder
 ├── server.js           # Express server + GitHub API proxy
 ├── package.json
 ├── .env                # Cấu hình local (không commit)
@@ -148,7 +130,6 @@ watermark-pro/
 ## API Endpoints
 
 ### `POST /api/github-push`
-Push ảnh lên GitHub.
 
 **Body:**
 ```json
@@ -166,11 +147,10 @@ Push ảnh lên GitHub.
 ```
 
 ### `GET /api/check-config`
-Kiểm tra cấu hình `.env` và kết nối tới GitHub repo.
 
 **Response OK:**
 ```json
-{ "ok": true, "repo": "owner/repo", "branch": "main", "private": false, "message": "✅ Kết nối thành công..." }
+{ "ok": true, "repo": "owner/repo", "branch": "main", "private": false, "message": "✅ Kết nối OK..." }
 ```
 
 ---

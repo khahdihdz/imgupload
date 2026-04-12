@@ -311,39 +311,6 @@ input[type=color] {
 .gh-status.ok  { background: rgba(128,255,176,.1); color: #7cffb0; border: 1px solid rgba(128,255,176,.2); display:block; }
 .gh-status.err { background: rgba(255,100,100,.1); color: #ff8888; border: 1px solid rgba(255,100,100,.2); display:block; }
 
-/* PROGRESS */
-.push-progress {
-  display: none;
-  margin-top: .6rem;
-}
-.push-progress.on { display: block; }
-.push-progress-label {
-  font-family: 'DM Mono', monospace; font-size: .6rem;
-  color: var(--muted); margin-bottom: .3rem;
-  display: flex; justify-content: space-between;
-}
-.push-progress-track {
-  height: 5px; border-radius: 99px;
-  background: var(--border); overflow: hidden;
-}
-.push-progress-bar {
-  height: 100%; border-radius: 99px;
-  background: linear-gradient(90deg, var(--accent2), var(--accent));
-  width: 0%; transition: width .3s ease;
-}
-.push-items {
-  display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .45rem;
-}
-.push-item {
-  font-family: 'DM Mono', monospace; font-size: .55rem;
-  padding: 2px 7px; border-radius: 4px;
-  background: var(--surface); border: 1px solid var(--border);
-  color: var(--muted); transition: all .2s;
-}
-.push-item.loading { border-color: var(--accent2); color: var(--accent2); }
-.push-item.done    { border-color: #7cffb0; color: #7cffb0; background: rgba(128,255,176,.07); }
-.push-item.err     { border-color: #ff8888; color: #ff8888; background: rgba(255,100,100,.07); }
-
 /* TOAST */
 .toast {
   position: fixed; bottom: 1.1rem; right: 1.1rem; z-index: 9999;
@@ -442,16 +409,6 @@ input[type=color] {
       </div>
       <div class="gh-status" id="ghStatus"></div>
       <div id="ghHint" style="display:none;margin-top:.4rem;font-size:.68rem;color:#ffb347;font-family:'DM Mono',monospace;padding:.4rem .6rem;background:rgba(255,179,71,.07);border-radius:6px;border:1px solid rgba(255,179,71,.2);line-height:1.5"></div>
-      <div class="push-progress" id="pushProgress">
-        <div class="push-progress-label">
-          <span id="pushProgressLabel">Đang push lên GitHub...</span>
-          <span id="pushProgressCount">0 / 0</span>
-        </div>
-        <div class="push-progress-track">
-          <div class="push-progress-bar" id="pushProgressBar"></div>
-        </div>
-        <div class="push-items" id="pushItems"></div>
-      </div>
     </div>
 
     <div style="display:flex;gap:.6rem;margin-top:.85rem;flex-wrap:wrap">
@@ -511,7 +468,6 @@ input[type=color] {
         <a class="url-link" id="outUrl" href="#" target="_blank" title="">—</a>
         <button class="sm-btn" onclick="copyUrl('outUrl',this)">Copy URL</button>
       </div>
-      <div id="outUrlNote" style="display:none;margin-top:.3rem;font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted)">URL phục vụ qua server (hoạt động với cả private repo)</div>
 
     </div>
 
@@ -530,11 +486,10 @@ input[type=color] {
 
 <script>
 /* ─── STATE ──────────────────────────────────────── */
-let files=[], urls=[], wms=[], wmUrls=[], wmPrivate=[], idx=0;
+let files=[], urls=[], wms=[], wmUrls=[], idx=0;
 // urls[i]   = blob URL (preview only, không lưu server)
 // wms[i]    = dataURL canvas watermarked
-// wmUrls[i]    = URL ảnh sau push (raw GitHub nếu public, proxy nếu private)
-// wmPrivate[i] = true nếu repo private
+// wmUrls[i] = raw.githubusercontent.com URL sau khi push
 
 /* ─── DOM ────────────────────────────────────────── */
 const DZ   = document.getElementById('dz');
@@ -573,9 +528,7 @@ async function ghPush(filename, dataUrl){
     err.hint = json.hint || '';
     throw err;
   }
-  // Trả về object { url, isPrivate } để client biết loại URL
-  return { url: json.url, isPrivate: json.isPrivate || false };
-}
+  return json.url; // https://raw.githubusercontent.com/...
 }
 
 /* ─── DRAG DROP ──────────────────────────────────── */
@@ -592,7 +545,6 @@ function load(nf){
   files=nf; urls=files.map(f=>URL.createObjectURL(f));
   wms=new Array(files.length).fill(null);
   wmUrls=new Array(files.length).fill(null);
-  wmPrivate=new Array(files.length).fill(false);
   idx=0;
   mkPills(); mkTabs(); showOrig(0);
   BATCH.style.display=files.length>1?'block':'none';
@@ -611,7 +563,7 @@ function mkPills(){
 }
 function rmFile(i){
   URL.revokeObjectURL(urls[i]);
-  files.splice(i,1); urls.splice(i,1); wms.splice(i,1); wmUrls.splice(i,1); wmPrivate.splice(i,1);
+  files.splice(i,1); urls.splice(i,1); wms.splice(i,1); wmUrls.splice(i,1);
   if(!files.length){resetAll();return;}
   idx=Math.min(idx,files.length-1);
   mkPills(); mkTabs(); showWMOrOrig(idx);
@@ -659,20 +611,12 @@ function setInfo(i,img){
 }
 function showOutUrl(i){
   const u=wmUrls[i];
-  const priv=wmPrivate[i];
   const el=document.getElementById('outUrl');
-  // Public repo → raw URL dùng được mọi nơi
-  // Private repo → proxy URL qua server, cần thêm origin
-  const absUrl = u ? (u.startsWith('http') ? u : window.location.origin + u) : '';
-  el.href= absUrl||'#';
-  el.textContent= u ? absUrl : '⏳ Đang push lên GitHub...';
-  el.title= absUrl||'';
+  el.href= u||'#';
+  el.textContent= u ? u : '⏳ Đang push lên GitHub...';
+  el.title= u||'';
   document.getElementById('outUrlLbl').style.display='';
   document.getElementById('outUrlRow').style.display='';
-  const note=document.getElementById('outUrlNote');
-  if(u && priv){ note.textContent='🔒 Private repo — URL phục vụ qua server'; note.style.display=''; }
-  else if(u)   { note.textContent='🌐 Public repo — raw URL, dùng được mọi nơi'; note.style.display=''; }
-  else           note.style.display='none';
 }
 function hideOutUrl(){
   document.getElementById('outUrlLbl').style.display='none';
@@ -711,10 +655,7 @@ function applyWM(){
   const bd=document.getElementById('wb').checked;
   const sh=document.getElementById('wsh').checked;
 
-  const total=files.length;
-  let rendered=0, pushed=0, errCount=0;
-  initProgress(total);
-
+  let done=0;
   files.forEach((_,i)=>{
     const img=new Image();
     img.onload=()=>{
@@ -740,70 +681,23 @@ function applyWM(){
       wms[i]=oc.toDataURL('image/png');
       wmUrls[i]=null;
       if(i===idx){ CV.width=oc.width; CV.height=oc.height; X.drawImage(oc,0,0); reveal(); setInfo(i,null); }
-      rendered++;
-      if(rendered===total) toast(`✅ Đã đóng dấu ${total} ảnh – đang push GitHub...`);
+      if(++done===files.length) toast(`✅ Đã đóng dấu ${done} ảnh – đang push GitHub...`);
 
       // Push ảnh WM lên GitHub
       const fname=`img_${i}_wm.png`;
-      setProgressItem(i,'loading',fname);
-      setGhStatus('','');
-
       ghPush(fname, wms[i])
-        .then(result=>{
-          wmUrls[i]=result.url;
-          wmPrivate[i]=result.isPrivate||false;
-          pushed++;
-          setProgressItem(i,'done',fname);
-          updateProgress(pushed+errCount,total,pushed,errCount);
-          if(pushed+errCount===total){
-            if(errCount===0) setGhStatus('ok',`✅ Đã push ${pushed}/${total} ảnh lên GitHub`);
-            else setGhStatus('err',`⚠️ ${pushed} thành công · ${errCount} thất bại`);
-          }
+        .then(rawUrl=>{
+          wmUrls[i]=rawUrl;
+          setGhStatus('ok',`✅ Đã lưu ${done} ảnh lên GitHub`);
           if(i===idx) showOutUrl(i);
         })
         .catch(err=>{
-          errCount++;
-          setProgressItem(i,'err',fname);
-          updateProgress(pushed+errCount,total,pushed,errCount);
           setGhStatus('err',`❌ Push thất bại: ${err.message}`, err.hint||'');
-          toast(`❌ ${fname}: ${err.message}`);
+          toast(`❌ img_${i}_wm.png lỗi: ${err.message}`);
         });
     };
     img.src=urls[i];
   });
-}
-
-/* ─── PROGRESS ───────────────────────────────────── */
-function initProgress(total){
-  const wrap=document.getElementById('pushProgress');
-  wrap.classList.add('on');
-  document.getElementById('pushProgressBar').style.width='0%';
-  document.getElementById('pushProgressLabel').textContent=
-    total===1 ? 'Đang push lên GitHub...' : `Đang push ${total} ảnh lên GitHub...`;
-  document.getElementById('pushProgressCount').textContent=`0 / ${total}`;
-  const items=document.getElementById('pushItems');
-  items.innerHTML='';
-  for(let i=0;i<total;i++){
-    const d=document.createElement('div');
-    d.className='push-item'; d.id=`pi_${i}`;
-    d.textContent=`img_${i}_wm.png`;
-    items.appendChild(d);
-  }
-}
-function setProgressItem(i,state,label){
-  const el=document.getElementById(`pi_${i}`);
-  if(!el) return;
-  el.className=`push-item ${state}`;
-  el.textContent= state==='loading'?`⏳ ${label}`:state==='done'?`✅ ${label}`:`❌ ${label}`;
-}
-function updateProgress(done,total,ok,err){
-  const pct=Math.round((done/total)*100);
-  document.getElementById('pushProgressBar').style.width=pct+'%';
-  document.getElementById('pushProgressCount').textContent=`${done} / ${total}`;
-  if(done===total){
-    document.getElementById('pushProgressLabel').textContent=
-      err===0?`✅ Hoàn tất — đã push ${ok} ảnh`:`Hoàn tất: ${ok} OK · ${err} lỗi`;
-  }
 }
 
 function setGhStatus(type, msg, hint=''){
@@ -849,15 +743,11 @@ function dlAll(){
 /* ─── RESET ──────────────────────────────────────── */
 function resetAll(){
   urls.forEach(u=>URL.revokeObjectURL(u));
-  files=[];urls=[];wms=[];wmUrls=[];wmPrivate=[];idx=0;
+  files=[];urls=[];wms=[];wmUrls=[];idx=0;
   PILLS.innerHTML=''; TABS.innerHTML='';
   PH.style.display=''; CW.style.display='none';
   IB.classList.remove('on'); BATCH.style.display='none'; FI.value='';
   hideOutUrl();
-  document.getElementById('outUrlNote').style.display='none';
-  document.getElementById('pushProgress').classList.remove('on');
-  document.getElementById('pushItems').innerHTML='';
-  document.getElementById('pushProgressBar').style.width='0%';
   toast('↺ Đã reset');
 }
 
