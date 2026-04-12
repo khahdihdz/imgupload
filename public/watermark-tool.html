@@ -308,8 +308,9 @@ input[type=color] {
   margin-top: .55rem; padding: .3rem .6rem; border-radius: 5px;
   display: none;
 }
-.gh-status.ok  { background: rgba(128,255,176,.1); color: #7cffb0; border: 1px solid rgba(128,255,176,.2); display:block; }
-.gh-status.err { background: rgba(255,100,100,.1); color: #ff8888; border: 1px solid rgba(255,100,100,.2); display:block; }
+.gh-status.ok      { background: rgba(128,255,176,.1); color: #7cffb0; border: 1px solid rgba(128,255,176,.2); display:block; }
+.gh-status.err     { background: rgba(255,100,100,.1); color: #ff8888; border: 1px solid rgba(255,100,100,.2); display:block; }
+.gh-status.pending { background: rgba(240,192,96,.1);  color: #f0c060; border: 1px solid rgba(240,192,96,.2);  display:block; }
 
 /* TOAST */
 .toast {
@@ -600,7 +601,7 @@ function setInfo(i,img){
   if(img) document.getElementById('stat').textContent=
     `📐 ${img.naturalWidth}×${img.naturalHeight}px  ·  💾 ${(f.size/1024).toFixed(1)} KB  ·  ${f.type}`;
   const outEl=document.getElementById('outN'), extEl=document.getElementById('outE');
-  if(wms[i]){ outEl.textContent=`img_${i}_wm.png`; extEl.style.display='inline'; showOutUrl(i); }
+  if(wms[i]){ outEl.textContent=wmName(i); extEl.style.display='inline'; showOutUrl(i); }
   else { outEl.textContent='Chưa áp dụng watermark...'; extEl.style.display='none'; hideOutUrl(); }
 }
 function showOutUrl(i){
@@ -675,19 +676,23 @@ function applyWM(){
       wms[i]=oc.toDataURL('image/png');
       wmUrls[i]=null;
       if(i===idx){ CV.width=oc.width; CV.height=oc.height; X.drawImage(oc,0,0); reveal(); setInfo(i,null); }
-      if(++done===files.length) toast(`✅ Đã đóng dấu ${done} ảnh – đang push GitHub...`);
+      const isLast=(++done===files.length);
+      if(isLast) setGhStatus('pending','⏳ Đang push lên GitHub...');
 
       // Push ảnh WM lên GitHub
-      const fname=`img_${i}_wm.png`;
+      const fname=wmName(i);
       ghPush(fname, wms[i])
         .then(rawUrl=>{
           wmUrls[i]=rawUrl;
-          setGhStatus('ok',`✅ Đã lưu ${done} ảnh lên GitHub`);
+          if(isLast){
+            setGhStatus('ok',`✅ Đã lưu ${files.length} ảnh lên GitHub`);
+            toast(`✅ Đã đóng dấu & push ${files.length} ảnh thành công`);
+          }
           if(i===idx) showOutUrl(i);
         })
         .catch(err=>{
           setGhStatus('err',`❌ Push thất bại: ${err.message}`);
-          toast(`❌ img_${i}_wm.png lỗi: ${err.message}`);
+          toast(`❌ ${fname} lỗi: ${err.message}`);
         });
     };
     img.src=urls[i];
@@ -699,18 +704,25 @@ function setGhStatus(type, msg){
   el.className=`gh-status ${type}`; el.textContent=msg;
 }
 
+/* ─── WM FILENAME helper ─────────────────────────── */
+function wmName(i){
+  const f=files[i]; if(!f) return `img_${i}_wm.png`;
+  const base=f.name.replace(/\.[^.]+$/,'');
+  return `${base}_wm.png`;
+}
+
 /* ─── DOWNLOAD ───────────────────────────────────── */
 function dlCurrent(){
   if(!wms[idx]){ toast('⚠️ Hãy áp dụng watermark trước!'); return; }
   const a=document.createElement('a');
-  a.href=wms[idx]; a.download=`img_${idx}_wm.png`; a.click();
+  a.href=wms[idx]; a.download=wmName(idx); a.click();
 }
 function dlAll(){
   const ok=wms.map((w,i)=>w?i:-1).filter(i=>i>=0);
   if(!ok.length){ toast('⚠️ Hãy áp dụng watermark trước!'); return; }
   ok.forEach((i,n)=>setTimeout(()=>{
     const a=document.createElement('a');
-    a.href=wms[i]; a.download=`img_${i}_wm.png`; a.click();
+    a.href=wms[i]; a.download=wmName(i); a.click();
   },n*350));
   toast(`⬇ Đang tải ${ok.length} ảnh...`);
 }

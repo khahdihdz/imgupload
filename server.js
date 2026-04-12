@@ -59,4 +59,4 @@ app.post('/api/github-push', async (req, res) => {
   res.json({ url: rawUrl });
 });
 
-app.listen(PORT, () => console.log(`WaterMark Pro server: http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`WaterMark Pro server running on port ${PORT}`));

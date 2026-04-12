@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: watermark-pro
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: GH_OWNER
+        sync: false
+      - key: GH_REPO
+        sync: false
+      - key: GH_BRANCH
+        value: main
+      - key: GH_FOLDER
+        value: img
+      - key: GH_TOKEN
+        sync: false
