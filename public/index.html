@@ -206,10 +206,41 @@ function showOutUrl(i){const u=wmUrls[i],el=document.getElementById('outUrl');el
 function hideOutUrl(){document.getElementById('outUrlLbl').style.display='none';document.getElementById('outUrlRow').style.display='none';}
 function copyUrl(id,btn){const el=document.getElementById(id),v=el.getAttribute('href');if(!v||v==='#')return;navigator.clipboard.writeText(v).then(()=>{btn.textContent='✓ OK';btn.classList.add('ok');setTimeout(()=>{btn.textContent='Copy URL';btn.classList.remove('ok');},1600);});}
 function copySpan(id,btn){const v=document.getElementById(id).textContent.trim();if(!v||v==='—')return;navigator.clipboard.writeText(v).then(()=>{btn.textContent='✓ OK';btn.classList.add('ok');setTimeout(()=>{btn.textContent='Copy tên';btn.classList.remove('ok');},1600);});}
-function applyWM(){if(!files.length){toast('⚠️ Hãy upload ảnh trước!');return;}
-  const text=document.getElementById('wt').value||'© Watermark',fs=+document.getElementById('ws').value,op=+document.getElementById('wo').value/100,sp=+document.getElementById('wsp').value,ag=+document.getElementById('wa').value*Math.PI/180,cl=document.getElementById('wc').value,fn=document.getElementById('wf').value,bd=document.getElementById('wb').checked,sh=document.getElementById('wsh').checked;
-  let done=0;
-  files.forEach((_,i)=>{const img=new Image();img.onload=()=>{const oc=document.createElement('canvas');oc.width=img.naturalWidth;oc.height=img.naturalHeight;const ox=oc.getContext('2d');ox.drawImage(img,0,0);ox.save();ox.globalAlpha=op;ox.font=`${bd?'bold ':''}${fs}px ${fn}`;ox.fillStyle=cl;ox.textBaseline='middle';if(sh){ox.shadowColor='rgba(0,0,0,.65)';ox.shadowBlur=Math.max(2,fs*.15);ox.shadowOffsetX=ox.shadowOffsetY=1;}const tw=ox.measureText(text).width,diag=Math.hypot(oc.width,oc.height),cols=Math.ceil(diag/(tw+sp))+3,rows=Math.ceil(diag/(fs+sp))+3;ox.translate(oc.width/2,oc.height/2);ox.rotate(ag);const sx=-diag/2,sy=-diag/2;for(let r=-rows;r<=rows*2;r++)for(let co=-cols;co<=cols*2;co++)ox.fillText(text,sx+co*(tw+sp),sy+r*(fs+sp));ox.restore();wms[i]=oc.toDataURL('image/png');wmUrls[i]=null;if(i===idx){CV.width=oc.width;CV.height=oc.height;X.drawImage(oc,0,0);reveal();setInfo(i,null);}if(++done===files.length){toast(`✅ Đã đóng dấu ${done} ảnh – đang push GitHub...`);const total=files.length;let pushed=0,errCount=0;progressShow(total);setGhStatus('','');wms.forEach((wm,j)=>{if(!wm){pushed++;progressUpdate(pushed,total,errCount>0);return;}const fname=randomFilename();ghPush(fname,wm).then(rawUrl=>{wmUrls[j]=rawUrl;pushed++;progressUpdate(pushed,total,errCount>0);if(j===idx)showOutUrl(j);if(pushed===total&&errCount===0)setGhStatus('ok',`✅ Đã push ${total} ảnh lên GitHub`);}).catch(err=>{errCount++;pushed++;progressUpdate(pushed,total,true);setGhStatus('err',`❌ Push thất bại: ${err.message}`,err.hint||'');toast(`❌ Ảnh ${j+1} lỗi: ${err.message}`);});});}};img.src=urls[i];});}
+function renderWM(srcUrl,text,fs,op,sp,ag,cl,fn,bd,sh){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{const oc=document.createElement('canvas');oc.width=img.naturalWidth;oc.height=img.naturalHeight;const ox=oc.getContext('2d');ox.drawImage(img,0,0);ox.save();ox.globalAlpha=op;ox.font=`${bd?'bold ':''}${fs}px ${fn}`;ox.fillStyle=cl;ox.textBaseline='middle';if(sh){ox.shadowColor='rgba(0,0,0,.65)';ox.shadowBlur=Math.max(2,fs*.15);ox.shadowOffsetX=ox.shadowOffsetY=1;}const tw=ox.measureText(text).width,diag=Math.hypot(oc.width,oc.height),cols=Math.ceil(diag/(tw+sp))+3,rows=Math.ceil(diag/(fs+sp))+3;ox.translate(oc.width/2,oc.height/2);ox.rotate(ag);const sx=-diag/2,sy=-diag/2;for(let r=-rows;r<=rows*2;r++)for(let co=-cols;co<=cols*2;co++)ox.fillText(text,sx+co*(tw+sp),sy+r*(fs+sp));ox.restore();resolve({dataUrl:oc.toDataURL('image/png'),width:oc.width,height:oc.height});};img.onerror=()=>reject(new Error('Không tải được ảnh'));img.src=srcUrl;});}
+async function applyWM(){
+  if(!files.length){toast('⚠️ Hãy upload ảnh trước!');return;}
+  const text=document.getElementById('wt').value||'© Watermark',
+        fs=+document.getElementById('ws').value,
+        op=+document.getElementById('wo').value/100,
+        sp=+document.getElementById('wsp').value,
+        ag=+document.getElementById('wa').value*Math.PI/180,
+        cl=document.getElementById('wc').value,
+        fn=document.getElementById('wf').value,
+        bd=document.getElementById('wb').checked,
+        sh=document.getElementById('wsh').checked;
+  // Bước 1: Render tất cả watermark song song
+  let rendered;
+  try{rendered=await Promise.all(urls.map(u=>renderWM(u,text,fs,op,sp,ag,cl,fn,bd,sh)));}
+  catch(e){toast(`❌ Lỗi render: ${e.message}`);return;}
+  // Cập nhật wms[] và preview ảnh hiện tại
+  const fnames=rendered.map(()=>randomFilename());
+  rendered.forEach(({dataUrl,width,height},i)=>{
+    wms[i]=dataUrl;wmUrls[i]=null;
+    if(i===idx){CV.width=width;CV.height=height;const img2=new Image();img2.onload=()=>{X.drawImage(img2,0,0);reveal();};img2.src=dataUrl;setInfo(i,null);}
+  });
+  toast(`✅ Đã đóng dấu ${files.length} ảnh – đang push GitHub...`);
+  // Bước 2: Push lên GitHub song song, track tiến độ từng ảnh
+  const total=files.length;let pushed=0,errCount=0;
+  progressShow(total);setGhStatus('','');
+  await Promise.all(wms.map((wm,j)=>
+    ghPush(fnames[j],wm)
+      .then(rawUrl=>{wmUrls[j]=rawUrl;pushed++;progressUpdate(pushed,total,errCount>0);if(j===idx)showOutUrl(j);})
+      .catch(err=>{errCount++;pushed++;progressUpdate(pushed,total,true);setGhStatus('err',`❌ Push thất bại: ${err.message}`,err.hint||'');toast(`❌ Ảnh ${j+1} lỗi: ${err.message}`);})
+  ));
+  if(errCount===0)setGhStatus('ok',`✅ Đã push ${total} ảnh lên GitHub`);
+  else setGhStatus('err',`⚠️ ${total-errCount}/${total} ảnh push OK · ${errCount} thất bại`);
+  if(wmUrls[idx])showOutUrl(idx);
+}
 function setGhStatus(type,msg,hint=''){const el=document.getElementById('ghStatus');el.className=`gh-status ${type}`;el.textContent=msg;const ht=document.getElementById('ghHint');if(hint){ht.textContent=`💡 ${hint}`;ht.style.display='block';}else{ht.style.display='none';}}
 async function checkConfig(){setGhStatus('','⏳ Đang kiểm tra kết nối GitHub...','');try{const res=await fetch('/api/check-config'),json=await res.json();if(json.ok){setGhStatus('ok',json.message||'✅ Kết nối GitHub OK');}else{setGhStatus('err',`❌ ${json.error}`,json.hint||'');}}catch(e){setGhStatus('err','❌ Không kết nối được server','Hãy đảm bảo server đang chạy');}}
 function dlCurrent(){if(!wms[idx]){toast('⚠️ Hãy áp dụng watermark trước!');return;}const a=document.createElement('a');a.href=wms[idx];a.download=`img_${idx}_wm.png`;a.click();}
