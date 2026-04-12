@@ -1,12 +1,15 @@
 import 'dotenv/config';
 import express from 'express';
 import fetch   from 'node-fetch';
+import { registerLazadaRoutes } from './lazada-api.js';
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static('public'));
+
+registerLazadaRoutes(app);
 
 /* ─── Helpers ─────────────────────────────────────── */
 function ghHeaders(token) {

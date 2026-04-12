@@ -66,6 +66,19 @@ header {
   font-family: 'DM Mono', monospace; font-size: .65rem;
   color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.hdr-nav {
+  margin-left: auto;
+  display: flex; gap: .5rem;
+}
+.nav-link-btn {
+  font-family: 'DM Mono', monospace; font-size: .6rem;
+  color: var(--muted); text-decoration: none;
+  padding: .25rem .6rem; border-radius: 5px;
+  border: 1px solid var(--border);
+  transition: all .2s;
+}
+.nav-link-btn:hover { color: var(--accent); border-color: var(--accent); background: rgba(240,192,96,.07); }
+.nav-link-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(240,192,96,.07); }
 
 /* MAIN */
 .main {
@@ -354,7 +367,10 @@ input[type=color] {
   <div class="logo-hex">W</div>
   <div class="logo-name">Water<em>Mark</em> Pro</div>
   <span class="badge-v">v3.6</span>
-  <div class="hdr-sub">Đóng dấu chống đạo ảnh</div>
+  <nav class="hdr-nav">
+    <a href="/index.html" class="nav-link-btn active">🖼 WaterMark</a>
+    <a href="/lazada.html" class="nav-link-btn">🔗 Lazada</a>
+  </nav>
 </header>
 
 <!-- MAIN -->
