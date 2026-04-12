@@ -98,18 +98,33 @@ Mở trình duyệt: [http://localhost:3000](http://localhost:3000)
 
 ## Gỡ lỗi: "Push thất bại: Not Found"
 
-Lỗi này xảy ra khi GitHub API trả về 404. Nguyên nhân thường gặp:
+> ⚠️ **Lưu ý quan trọng về private repo:** GitHub luôn trả về  (thay vì ) khi token thiếu quyền truy cập private repo — để ẩn sự tồn tại của repo. Đây là nguyên nhân phổ biến nhất của lỗi này.
+
+### Nguyên nhân & cách xử lý
 
 | Nguyên nhân | Cách xử lý |
 |-------------|------------|
-| `GH_OWNER` hoặc `GH_REPO` sai | Kiểm tra chính tả trong `.env` |
-| Repo chưa tồn tại | Tạo repo trên GitHub trước |
-| Repo private + token thiếu quyền | Đảm bảo token có scope **`repo`** (không chỉ `public_repo`) |
+| Token thiếu scope cho **private repo** | Dùng **Classic Token** với scope **** (bao gồm toàn bộ, không chỉ ) |
+| Token Fine-grained thiếu quyền | Vào token → chọn repo → bật **Contents: Read & write** |
+|  hoặc  sai chính tả | Kiểm tra lại trong  |
+| Repo chưa tồn tại | Tạo repo trên GitHub trước, có ít nhất 1 commit |
 | Token hết hạn | Tạo token mới tại [github.com/settings/tokens](https://github.com/settings/tokens) |
-| `GH_BRANCH` sai | Kiểm tra tên branch (thường là `main` hoặc `master`) |
-| Repo chưa có commit nào | Tạo file README khi tạo repo |
+|  sai | Kiểm tra tên branch:  hoặc  |
 
-**Cách kiểm tra nhanh:** Nhấn nút **🔌 Test** trong ứng dụng để kiểm tra kết nối GitHub trước khi push.
+### Cách tạo token đúng cho private repo
+
+**Classic Token (khuyến nghị, đơn giản hơn):**
+1. Vào https://github.com/settings/tokens → **Generate new token (classic)**
+2. Chọn scope: ✅ **** (toàn bộ — bao gồm private repo)
+3. Click Generate → Copy token vào 
+
+**Fine-grained Token:**
+1. Vào https://github.com/settings/tokens → **Generate new token (fine-grained)**
+2. **Repository access** → chọn đúng repo 
+3. **Permissions → Contents** → chọn **Read and write**
+4. Generate → Copy token vào 
+
+**Cách kiểm tra nhanh:** Nhấn nút **🔌 Test** trong ứng dụng — server sẽ xác minh token và quyền truy cập repo rồi báo lỗi cụ thể.
 
 ---
 

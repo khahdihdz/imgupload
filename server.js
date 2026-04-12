@@ -8,15 +8,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static('public'));
 
-/* ─── Helper: build GitHub API URL ─── */
-function ghApiUrl(owner, repo, folder, filename) {
-  const path = `${(folder || 'img').replace(/\/+$/, '')}/${filename}`;
-  return {
-    path,
-    url: `https://api.github.com/repos/${owner}/${repo}/contents/${path}`
-  };
-}
-
+/* ─── Helpers ─────────────────────────────────────── */
 function ghHeaders(token) {
   return {
     Authorization : `Bearer ${token}`,
@@ -26,20 +18,83 @@ function ghHeaders(token) {
   };
 }
 
-/* ─── GET /api/check-config ───────────────────────
-   Kiểm tra .env và kết nối GitHub trước khi push
-─────────────────────────────────────────────────── */
+function filePath(folder, filename) {
+  return `${(folder || 'img').replace(/\/+$/, '')}/${filename}`;
+}
+
+/**
+ * Chẩn đoán lỗi GitHub chính xác cho private repo:
+ * - GitHub trả 404 cho cả "repo không tồn tại" VÀ "token không có quyền"
+ * - Cần kiểm tra token hợp lệ (GET /user) trước để phân biệt
+ */
+async function diagnoseGitHubError(status, owner, repo, token) {
+  if (status === 401) {
+    return {
+      error: 'Token GitHub không hợp lệ hoặc đã hết hạn',
+      hint : 'Tạo Personal Access Token mới tại https://github.com/settings/tokens với scope "repo"'
+    };
+  }
+
+  if (status === 404) {
+    // Kiểm tra token có hợp lệ không (GET /user luôn hoạt động nếu token đúng)
+    try {
+      const userRes = await fetch('https://api.github.com/user', {
+        headers: ghHeaders(token)
+      });
+
+      if (!userRes.ok) {
+        // Token không hợp lệ
+        return {
+          error: 'Token GitHub không hợp lệ hoặc đã hết hạn',
+          hint : 'Tạo Personal Access Token mới tại https://github.com/settings/tokens với scope "repo"'
+        };
+      }
+
+      const user = await userRes.json();
+
+      // Token hợp lệ nhưng vẫn 404 → thiếu scope "repo" cho private repo
+      // hoặc repo thực sự không tồn tại
+      return {
+        error: `Không thể truy cập repo "${owner}/${repo}"`,
+        hint : `Token của "${user.login}" thiếu quyền truy cập. Với private repo, cần scope "repo" (Classic Token). Kiểm tra tại https://github.com/settings/tokens — hoặc repo chưa được tạo.`
+      };
+    } catch (_) {
+      return {
+        error: `Repo "${owner}/${repo}" không tồn tại hoặc token thiếu quyền`,
+        hint : 'Đảm bảo token Classic có scope "repo" hoặc Fine-grained token có quyền "Contents: Read & write" cho repo này'
+      };
+    }
+  }
+
+  if (status === 403) {
+    return {
+      error: 'Token không có quyền ghi vào repo',
+      hint : 'Đảm bảo token có scope "repo" (Classic) hoặc quyền "Contents: Read & write" (Fine-grained)'
+    };
+  }
+
+  if (status === 422) {
+    return {
+      error: 'Dữ liệu không hợp lệ (branch sai hoặc SHA không khớp)',
+      hint : `Kiểm tra GH_BRANCH trong .env — branch hiện tại: "${process.env.GH_BRANCH || 'main'}"`
+    };
+  }
+
+  return { error: `GitHub API lỗi ${status}`, hint: '' };
+}
+
+/* ─── GET /api/check-config ───────────────────────── */
 app.get('/api/check-config', async (req, res) => {
   const owner  = process.env.GH_OWNER;
   const repo   = process.env.GH_REPO;
   const branch = process.env.GH_BRANCH || 'main';
   const token  = process.env.GH_TOKEN;
 
+  // 1. Kiểm tra .env đầy đủ chưa
   const missing = [];
-  if (!owner)  missing.push('GH_OWNER');
-  if (!repo)   missing.push('GH_REPO');
-  if (!token)  missing.push('GH_TOKEN');
-
+  if (!owner) missing.push('GH_OWNER');
+  if (!repo)  missing.push('GH_REPO');
+  if (!token) missing.push('GH_TOKEN');
   if (missing.length) {
     return res.status(500).json({
       ok: false,
@@ -48,22 +103,13 @@ app.get('/api/check-config', async (req, res) => {
     });
   }
 
-  // Kiểm tra repo tồn tại & token hợp lệ
   try {
-    const chk = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}`,
-      { headers: ghHeaders(token) }
-    );
+    // 2. Kiểm tra token hợp lệ qua GET /user
+    const userRes = await fetch('https://api.github.com/user', {
+      headers: ghHeaders(token)
+    });
 
-    if (chk.status === 404) {
-      return res.status(404).json({
-        ok: false,
-        error: `Repo "${owner}/${repo}" không tồn tại hoặc token không có quyền truy cập`,
-        hint : 'Kiểm tra GH_OWNER, GH_REPO và đảm bảo token có scope "repo" (với private repo) hoặc "public_repo" (với public repo)'
-      });
-    }
-
-    if (chk.status === 401) {
+    if (userRes.status === 401) {
       return res.status(401).json({
         ok: false,
         error: 'Token GitHub không hợp lệ hoặc đã hết hạn',
@@ -71,22 +117,58 @@ app.get('/api/check-config', async (req, res) => {
       });
     }
 
-    if (!chk.ok) {
-      const body = await chk.json().catch(() => ({}));
-      return res.status(chk.status).json({
+    if (!userRes.ok) {
+      return res.status(userRes.status).json({
         ok: false,
-        error: body.message || `GitHub API lỗi ${chk.status}`,
-        hint : 'Xem console để biết thêm chi tiết'
+        error: `Không xác thực được với GitHub (${userRes.status})`,
+        hint : 'Kiểm tra lại GH_TOKEN'
       });
     }
 
-    const info = await chk.json();
+    const userInfo = await userRes.json();
+
+    // 3. Kiểm tra quyền truy cập repo
+    const repoRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}`,
+      { headers: ghHeaders(token) }
+    );
+
+    if (repoRes.status === 404) {
+      return res.status(404).json({
+        ok: false,
+        error: `Repo "${owner}/${repo}" không tồn tại hoặc token của "${userInfo.login}" thiếu quyền truy cập`,
+        hint : 'Với private repo: dùng Classic Token có scope "repo", hoặc Fine-grained Token với quyền "Contents: Read & write" cho repo này. Tạo token tại https://github.com/settings/tokens'
+      });
+    }
+
+    if (!repoRes.ok) {
+      const { error, hint } = await diagnoseGitHubError(repoRes.status, owner, repo, token);
+      return res.status(repoRes.status).json({ ok: false, error, hint });
+    }
+
+    const repoInfo = await repoRes.json();
+
+    // 4. Kiểm tra branch tồn tại
+    const branchRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/branches/${branch}`,
+      { headers: ghHeaders(token) }
+    );
+
+    if (!branchRes.ok) {
+      return res.status(404).json({
+        ok: false,
+        error: `Branch "${branch}" không tồn tại trong repo "${owner}/${repo}"`,
+        hint : `Kiểm tra GH_BRANCH trong .env. Các branch thường dùng: main, master`
+      });
+    }
+
     return res.json({
       ok      : true,
       repo    : `${owner}/${repo}`,
       branch,
-      private : info.private,
-      message : `✅ Kết nối thành công tới ${owner}/${repo} (${info.private ? 'private' : 'public'})`
+      private : repoInfo.private,
+      user    : userInfo.login,
+      message : `✅ Kết nối OK · ${owner}/${repo} (${repoInfo.private ? 'private' : 'public'}) · branch: ${branch}`
     });
 
   } catch (err) {
@@ -98,10 +180,7 @@ app.get('/api/check-config', async (req, res) => {
   }
 });
 
-/* ─── POST /api/github-push ─────────────────────────
-   Body: { filename: string, base64: string }
-   Token & repo config lấy từ .env, không lộ ra client
-─────────────────────────────────────────────────── */
+/* ─── POST /api/github-push ──────────────────────── */
 app.post('/api/github-push', async (req, res) => {
   const { filename, base64 } = req.body;
 
@@ -122,39 +201,22 @@ app.post('/api/github-push', async (req, res) => {
     });
   }
 
-  const { path, url: apiUrl } = ghApiUrl(owner, repo, folder, filename);
+  const path   = filePath(folder, filename);
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
   const headers = ghHeaders(token);
 
-  // Lấy sha nếu file đã tồn tại (để update thay vì tạo mới)
+  // Lấy SHA nếu file đã tồn tại (update thay vì tạo mới)
   let sha = null;
   try {
     const chk = await fetch(`${apiUrl}?ref=${branch}`, { headers });
     if (chk.ok) {
       const j = await chk.json();
       sha = j.sha;
-    } else if (chk.status === 401) {
-      return res.status(401).json({
-        error: 'Token GitHub không hợp lệ hoặc đã hết hạn',
-        hint : 'Tạo Personal Access Token mới tại https://github.com/settings/tokens'
-      });
-    } else if (chk.status === 404) {
-      // File chưa tồn tại → sẽ tạo mới, không cần sha
-      // Nhưng nếu repo không tồn tại thì cũng 404 → kiểm tra thêm
-      const errBody = await chk.json().catch(() => ({}));
-      if (errBody.message === 'Not Found') {
-        // Có thể là repo không tồn tại, kiểm tra repo
-        const repoChk = await fetch(
-          `https://api.github.com/repos/${owner}/${repo}`,
-          { headers }
-        );
-        if (!repoChk.ok) {
-          return res.status(404).json({
-            error: `Repo "${owner}/${repo}" không tồn tại hoặc token không có quyền`,
-            hint : 'Kiểm tra GH_OWNER, GH_REPO trong .env và đảm bảo token có scope "repo"'
-          });
-        }
-        // Repo tồn tại, file chưa có → tạo mới bình thường
-      }
+    } else if (chk.status !== 404) {
+      // 404 = file chưa có → bình thường, tạo mới
+      // Các lỗi khác (401, 403...) → báo ngay
+      const { error, hint } = await diagnoseGitHubError(chk.status, owner, repo, token);
+      return res.status(chk.status).json({ error, hint });
     }
   } catch (networkErr) {
     return res.status(500).json({
@@ -163,11 +225,8 @@ app.post('/api/github-push', async (req, res) => {
     });
   }
 
-  const body = {
-    message: `upload ${filename}`,
-    content: base64,
-    branch
-  };
+  // Ghi file lên GitHub
+  const body = { message: `upload ${filename}`, content: base64, branch };
   if (sha) body.sha = sha;
 
   try {
@@ -178,26 +237,21 @@ app.post('/api/github-push', async (req, res) => {
     });
 
     if (!ghRes.ok) {
-      const err = await ghRes.json().catch(() => ({}));
-      const msg = err.message || ghRes.statusText;
-
-      // Cung cấp hint cụ thể theo từng mã lỗi
-      let hint = '';
-      if (ghRes.status === 404) {
-        hint = `Repo "${owner}/${repo}" hoặc branch "${branch}" không tồn tại. Kiểm tra GH_OWNER, GH_REPO, GH_BRANCH trong .env`;
-      } else if (ghRes.status === 401) {
-        hint = 'Token hết hạn hoặc sai. Tạo token mới tại https://github.com/settings/tokens với scope "repo"';
-      } else if (ghRes.status === 403) {
-        hint = 'Token không có quyền ghi. Đảm bảo token có scope "repo" hoặc "public_repo"';
-      } else if (ghRes.status === 422) {
-        hint = 'Nội dung file không hợp lệ hoặc branch không khớp';
-      }
-
-      return res.status(ghRes.status).json({ error: msg, hint });
+      const errBody = await ghRes.json().catch(() => ({}));
+      const { error, hint } = await diagnoseGitHubError(ghRes.status, owner, repo, token);
+      // Ưu tiên message từ GitHub nếu có thông tin cụ thể hơn
+      return res.status(ghRes.status).json({
+        error: errBody.message && errBody.message !== 'Not Found' ? errBody.message : error,
+        hint
+      });
     }
 
+    // Với private repo, raw.githubusercontent.com cần token để truy cập
+    // Trả về cả URL API lẫn raw URL để client tự chọn
     const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
-    res.json({ url: rawUrl });
+    const apiFileUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+
+    res.json({ url: rawUrl, apiUrl: apiFileUrl, private: false });
 
   } catch (networkErr) {
     return res.status(500).json({
