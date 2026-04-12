@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WaterMark Pro – Đóng Dấu Ảnh</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #09090f;
+  --surface: #12121a;
+  --card: #1a1a25;
+  --border: #252535;
+  --accent: #f0c060;
+  --accent2: #60c0f0;
+  --text: #e2e2ee;
+  --muted: #5a5a7a;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; overflow-x: hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(240,192,96,.034) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(240,192,96,.034) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+.wrapper { position: relative; z-index: 1; }
+
+/* HEADER */
+header {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(9,9,15,.93);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+  padding: .8rem 1.2rem;
+  display: flex; align-items: center; gap: .75rem;
+  overflow: hidden;
+}
+.logo-hex {
+  flex-shrink: 0; width: 32px; height: 32px;
+  background: var(--accent);
+  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  display: grid; place-items: center;
+  font-size: .65rem; font-weight: 800; color: #000;
+}
+.logo-name { font-size: .95rem; font-weight: 800; letter-spacing: -.02em; white-space: nowrap; }
+.logo-name em { color: var(--accent); font-style: normal; }
+.badge-v {
+  font-family: 'DM Mono', monospace; font-size: .55rem;
+  background: var(--accent); color: #000;
+  padding: 2px 6px; border-radius: 3px; font-weight: 600;
+}
+.hdr-sub {
+  margin-left: auto;
+  font-family: 'DM Mono', monospace; font-size: .65rem;
+  color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* MAIN */
+.main {
+  max-width: 1060px; margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+/* TWO-COLUMN GRID */
+.g2 {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 840px) {
+  .g2 { grid-template-columns: 1fr; }
+}
+
+/* STEP LABEL */
+.step {
+  font-family: 'DM Mono', monospace;
+  font-size: .58rem; letter-spacing: .18em;
+  color: var(--accent); text-transform: uppercase;
+  margin-bottom: .4rem;
+}
+
+/* DROP ZONE */
+.drop {
+  position: relative; overflow: hidden;
+  border: 2px dashed var(--border); border-radius: 12px;
+  background: var(--surface);
+  padding: 2rem 1.4rem; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.drop::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 0%, rgba(240,192,96,.07) 0%, transparent 65%);
+}
+.drop:hover, .drop.over { border-color: var(--accent); background: rgba(240,192,96,.04); }
+.drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop-ic { font-size: 2.2rem; line-height: 1; margin-bottom: .6rem; display: block;
+  filter: drop-shadow(0 0 13px rgba(240,192,96,.45)); }
+.drop h3 { font-size: .95rem; font-weight: 700; margin-bottom: .25rem; }
+.drop p  { color: var(--muted); font-size: .78rem; }
+
+/* PILLS */
+.pills { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .55rem; }
+.pill {
+  display: inline-flex; align-items: center; gap: .4rem;
+  background: rgba(96,192,240,.08); border: 1px solid rgba(96,192,240,.2);
+  color: var(--accent2); border-radius: 20px;
+  padding: .22rem .7rem; font-family: 'DM Mono', monospace; font-size: .7rem;
+  max-width: 220px;
+}
+.pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill .rm { cursor: pointer; opacity: .5; flex-shrink: 0; }
+.pill .rm:hover { opacity: 1; }
+
+/* DIVIDER */
+.dl { height: 1px; background: var(--border); margin: 1rem 0; }
+
+/* CTRL CARD */
+.cc {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.1rem;
+}
+.cl {
+  font-family: 'DM Mono', monospace;
+  font-size: .66rem; color: var(--muted); letter-spacing: .04em;
+  display: block; margin-bottom: .32rem;
+}
+.rv { color: var(--accent); font-weight: 600; }
+
+input[type=range] {
+  -webkit-appearance: none; width: 100%; height: 3px;
+  background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  background: var(--accent); border-radius: 50%;
+  box-shadow: 0 0 6px rgba(240,192,96,.5);
+}
+
+.ti {
+  width: 100%; background: var(--bg);
+  border: 1px solid var(--border); color: var(--text);
+  border-radius: 7px; font-family: 'DM Mono', monospace;
+  font-size: .78rem; padding: .48rem .78rem;
+  transition: border-color .2s;
+}
+.ti:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(240,192,96,.1); }
+select.ti { cursor: pointer; }
+
+input[type=color] {
+  -webkit-appearance: none; width: 30px; height: 30px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); cursor: pointer; padding: 2px; flex-shrink: 0;
+}
+
+.chk {
+  display: inline-flex; align-items: center; gap: .5rem; cursor: pointer;
+}
+.chk input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
+.chk span { font-family: 'DM Mono', monospace; font-size: .7rem; color: var(--muted); }
+
+/* BUTTONS */
+.btn-g {
+  background: var(--accent); color: #000;
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  border: none; border-radius: 8px;
+  padding: .58rem 1.3rem; font-size: .83rem;
+  cursor: pointer; white-space: nowrap;
+  transition: box-shadow .2s, transform .15s;
+}
+.btn-g:hover { box-shadow: 0 6px 20px rgba(240,192,96,.35); transform: translateY(-1px); }
+.btn-gh {
+  background: transparent; color: var(--text);
+  font-family: 'Syne', sans-serif; font-weight: 600;
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: .58rem 1.1rem; font-size: .83rem;
+  cursor: pointer; white-space: nowrap;
+  transition: border-color .2s, color .2s;
+}
+.btn-gh:hover { border-color: var(--accent2); color: var(--accent2); }
+
+/* PREVIEW BOX — KEY RULES */
+.prev-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;          /* clip any overflow absolutely */
+  min-height: 240px;
+  width: 100%;
+  max-width: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.prev-ph { text-align: center; padding: 2.2rem 1.2rem; }
+.prev-ph svg { opacity: .18; display: block; margin: 0 auto .7rem; }
+.prev-ph p { color: var(--muted); font-size: .8rem; }
+
+/* Canvas wrapper — constrains the actual canvas */
+.cv-wrap {
+  width: 100%; max-width: 100%;
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 10px; overflow: hidden;
+}
+.cv-wrap canvas {
+  /* Scale DOWN to container, never scale up, preserve aspect ratio */
+  display: block;
+  max-width: 100%;
+  max-height: 420px;
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+}
+
+/* TABS */
+.tabs { display: flex; flex-wrap: wrap; gap: .25rem; margin-bottom: .75rem; }
+.tab {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); padding: .28rem .85rem; border-radius: 6px;
+  font-family: 'DM Mono', monospace; font-size: .7rem; cursor: pointer;
+  transition: all .18s;
+}
+.tab.on { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+
+/* INFO BOX */
+.ib {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: .85rem 1rem;
+  margin-top: .75rem;
+  display: none; overflow: hidden; min-width: 0;
+}
+.ib.on { display: block; }
+.ib-lbl {
+  font-family: 'DM Mono', monospace; font-size: .58rem;
+  color: var(--accent); text-transform: uppercase; letter-spacing: .1em;
+  margin-bottom: .38rem;
+}
+
+/* Filename row: icon + name (truncated) + ext badge + button */
+.fn-row {
+  display: flex; align-items: center; gap: .45rem;
+  min-width: 0; overflow: hidden;
+}
+.fn-name {
+  flex: 1; min-width: 0;
+  font-family: 'DM Mono', monospace; font-size: .76rem;
+  color: var(--accent2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fn-ext {
+  flex-shrink: 0;
+  font-family: 'DM Mono', monospace; font-size: .62rem;
+  background: rgba(96,192,240,.11); border: 1px solid rgba(96,192,240,.22);
+  color: var(--accent2); border-radius: 4px; padding: 2px 6px;
+}
+.fn-out { color: #80ffb0; }
+.fn-ext-out {
+  background: rgba(128,255,176,.1); border: 1px solid rgba(128,255,176,.22);
+  color: #80ffb0;
+}
+.sm-btn {
+  flex-shrink: 0;
+  background: var(--border); border: none;
+  color: var(--text); padding: .25rem .6rem; border-radius: 5px;
+  font-family: 'DM Mono', monospace; font-size: .66rem; cursor: pointer;
+  transition: background .18s;
+}
+.sm-btn:hover { background: var(--accent); color: #000; }
+.sm-btn.ok { background: #2a6640; color: #7cffb0; }
+
+.stat { font-family:'DM Mono',monospace; font-size:.66rem; color:var(--muted);
+  margin-top:.42rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* URL row */
+.url-row {
+  display: flex; align-items: center; gap: .45rem;
+  margin-top: .42rem; min-width: 0; overflow: hidden;
+}
+.url-link {
+  flex: 1; min-width: 0;
+  font-family: 'DM Mono', monospace; font-size: .68rem;
+  color: #a0d8ff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(160,216,255,.35);
+  transition: color .18s, border-color .18s;
+}
+.url-link:hover { color: #fff; border-color: rgba(160,216,255,.7); }
+.url-lbl {
+  font-family: 'DM Mono', monospace; font-size: .58rem;
+  color: var(--accent); text-transform: uppercase; letter-spacing: .1em;
+  margin-top: .55rem; margin-bottom: .2rem;
+}
+
+.gh-status {
+  font-family: 'DM Mono', monospace; font-size: .64rem;
+  margin-top: .55rem; padding: .3rem .6rem; border-radius: 5px;
+  display: none;
+}
+.gh-status.ok  { background: rgba(128,255,176,.1); color: #7cffb0; border: 1px solid rgba(128,255,176,.2); display:block; }
+.gh-status.err { background: rgba(255,100,100,.1); color: #ff8888; border: 1px solid rgba(255,100,100,.2); display:block; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 1.1rem; right: 1.1rem; z-index: 9999;
+  background: #1b3828; border: 1px solid #2e7a52; color: #7cffb0;
+  padding: .55rem 1rem; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: .76rem;
+  opacity: 0; transform: translateY(60px);
+  transition: opacity .26s, transform .26s;
+  pointer-events: none;
+}
+.toast.on { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<!-- HEADER -->
+<header>
+  <div class="logo-hex">W</div>
+  <div class="logo-name">Water<em>Mark</em> Pro</div>
+  <span class="badge-v">v3.6</span>
+  <div class="hdr-sub">Đóng dấu chống đạo ảnh</div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+<div class="g2">
+
+  <!-- ═══ LEFT ═══ -->
+  <div>
+    <div class="step">01 / Chọn ảnh</div>
+    <div class="drop" id="dz">
+      <input type="file" id="fi" accept="image/*" multiple>
+      <span class="drop-ic">🖼️</span>
+      <h3>Kéo & thả ảnh vào đây</h3>
+      <p>hoặc click để chọn · JPG · PNG · WEBP · GIF</p>
+    </div>
+    <div class="pills" id="pills"></div>
+
+    <div class="dl"></div>
+
+    <div class="step">02 / Cài đặt Watermark</div>
+    <div class="cc">
+
+      <div style="margin-bottom:.85rem">
+        <label class="cl">Nội dung watermark</label>
+        <input class="ti" type="text" id="wt" value="© Bản quyền ảnh – Không được sao chép">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+        <div>
+          <label class="cl">Cỡ chữ <span class="rv" id="fv">22</span>px</label>
+          <input type="range" id="ws" min="8" max="72" value="22">
+        </div>
+        <div>
+          <label class="cl">Độ mờ <span class="rv" id="ov">30</span>%</label>
+          <input type="range" id="wo" min="5" max="100" value="30">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+        <div>
+          <label class="cl">Khoảng cách <span class="rv" id="sv">80</span>px</label>
+          <input type="range" id="wsp" min="20" max="300" value="80">
+        </div>
+        <div>
+          <label class="cl">Góc nghiêng <span class="rv" id="av">-35</span>°</label>
+          <input type="range" id="wa" min="-90" max="90" value="-35">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+        <div>
+          <label class="cl">Màu chữ</label>
+          <div style="display:flex;align-items:center;gap:.5rem">
+            <input type="color" id="wc" value="#ffffff">
+            <span style="font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted)" id="hv">#ffffff</span>
+          </div>
+        </div>
+        <div>
+          <label class="cl">Kiểu chữ</label>
+          <select class="ti" id="wf">
+            <option value="Arial">Arial</option>
+            <option value="'Courier New'">Courier New</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Impact">Impact</option>
+            <option value="'Times New Roman'">Times New Roman</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:1.2rem">
+        <label class="chk"><input type="checkbox" id="wb" checked><span>In đậm</span></label>
+        <label class="chk"><input type="checkbox" id="wsh" checked><span>Đổ bóng</span></label>
+      </div>
+      <div class="gh-status" id="ghStatus"></div>
+    </div>
+
+    <div style="display:flex;gap:.6rem;margin-top:.85rem">
+      <button class="btn-g" style="flex:1" onclick="applyWM()">⚡ Áp dụng Watermark</button>
+      <button class="btn-gh" onclick="resetAll()">↺ Reset</button>
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT ═══ -->
+  <div style="min-width:0;overflow:hidden">
+
+    <div class="step">03 / Xem trước & tải xuống</div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <!-- PREVIEW — canvas lives inside here, fully contained -->
+    <div class="prev-box" id="pb">
+      <div class="prev-ph" id="ph">
+        <svg width="52" height="52" viewBox="0 0 64 64" fill="none">
+          <rect x="4" y="12" width="56" height="40" rx="4" stroke="#5a5a7a" stroke-width="2"/>
+          <circle cx="22" cy="28" r="6" stroke="#5a5a7a" stroke-width="2"/>
+          <path d="M4 44L20 30L30 40L42 26L60 44" stroke="#5a5a7a" stroke-width="2"/>
+        </svg>
+        <p>Chưa có ảnh — hãy upload ảnh trước</p>
+      </div>
+      <div class="cv-wrap" id="cw">
+        <canvas id="cv"></canvas>
+      </div>
+    </div>
+
+    <!-- INFO BOX -->
+    <div class="ib" id="ib">
+
+      <!-- original -->
+      <div class="ib-lbl">📁 File gốc đã upload</div>
+      <div class="fn-row">
+        <span class="fn-name" id="origN" title="">—</span>
+        <span class="fn-ext"  id="origE">—</span>
+        <button class="sm-btn" onclick="copySpan('origN',this)">Copy tên</button>
+      </div>
+      <div class="stat" id="stat"></div>
+
+      <div class="dl" style="margin:.65rem 0"></div>
+
+      <!-- output -->
+      <div class="ib-lbl">💾 File xuất sau khi đóng dấu</div>
+      <div class="fn-row">
+        <span class="fn-name fn-out" id="outN">Chưa áp dụng watermark...</span>
+        <span class="fn-ext fn-ext-out" id="outE" style="display:none">PNG</span>
+        <button class="sm-btn" id="dlb" onclick="dlCurrent()">⬇ Tải</button>
+      </div>
+
+      <!-- output URL -->
+      <div class="url-lbl" id="outUrlLbl" style="display:none">🔗 URL ảnh đã đóng dấu</div>
+      <div class="url-row" id="outUrlRow" style="display:none">
+        <a class="url-link" id="outUrl" href="#" target="_blank" title="">—</a>
+        <button class="sm-btn" onclick="copyUrl('outUrl',this)">Copy URL</button>
+      </div>
+
+    </div>
+
+    <!-- batch -->
+    <div id="batch" style="display:none;margin-top:.75rem;text-align:center">
+      <div class="dl"></div>
+      <button class="btn-g" onclick="dlAll()" style="padding:.58rem 2.2rem">⬇ Tải tất cả ảnh đã đóng dấu</button>
+    </div>
+
+  </div><!-- /right -->
+</div><!-- /g2 -->
+</div><!-- /main -->
+</div><!-- /wrapper -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ─── STATE ──────────────────────────────────────── */
+let files=[], urls=[], wms=[], wmUrls=[], idx=0;
+// urls[i]   = blob URL (preview only, không lưu server)
+// wms[i]    = dataURL canvas watermarked
+// wmUrls[i] = raw.githubusercontent.com URL sau khi push
+
+/* ─── DOM ────────────────────────────────────────── */
+const DZ   = document.getElementById('dz');
+const FI   = document.getElementById('fi');
+const TABS = document.getElementById('tabs');
+const PH   = document.getElementById('ph');
+const CW   = document.getElementById('cw');
+const CV   = document.getElementById('cv');
+const X    = CV.getContext('2d');
+const IB   = document.getElementById('ib');
+const PILLS= document.getElementById('pills');
+const BATCH= document.getElementById('batch');
+
+/* ─── RANGES ─────────────────────────────────────── */
+const RM = { ws:'fv', wo:'ov', wsp:'sv', wa:'av' };
+Object.keys(RM).forEach(id => {
+  document.getElementById(id).addEventListener('input', function(){
+    document.getElementById(RM[id]).textContent = this.value;
+  });
+});
+document.getElementById('wc').addEventListener('input',function(){
+  document.getElementById('hv').textContent = this.value;
+});
+
+/* ─── GITHUB PUSH (qua server, token không lộ client) */
+async function ghPush(filename, dataUrl){
+  const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+  const res = await fetch('/api/github-push', {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify({ filename, base64 })
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || res.statusText);
+  return json.url; // https://raw.githubusercontent.com/...
+}
+
+/* ─── DRAG DROP ──────────────────────────────────── */
+DZ.addEventListener('dragover', e=>{ e.preventDefault(); DZ.classList.add('over'); });
+DZ.addEventListener('dragleave', ()=> DZ.classList.remove('over'));
+DZ.addEventListener('drop', e=>{ e.preventDefault(); DZ.classList.remove('over'); load([...e.dataTransfer.files]); });
+FI.addEventListener('change', ()=> load([...FI.files]));
+
+/* ─── LOAD (blob preview only) ───────────────────── */
+function load(nf){
+  nf=nf.filter(f=>f.type.startsWith('image/'));
+  if(!nf.length) return;
+  urls.forEach(u=>URL.revokeObjectURL(u));
+  files=nf; urls=files.map(f=>URL.createObjectURL(f));
+  wms=new Array(files.length).fill(null);
+  wmUrls=new Array(files.length).fill(null);
+  idx=0;
+  mkPills(); mkTabs(); showOrig(0);
+  BATCH.style.display=files.length>1?'block':'none';
+  toast(`✅ Đã tải ${files.length} ảnh`);
+}
+
+/* ─── PILLS ──────────────────────────────────────── */
+function mkPills(){
+  PILLS.innerHTML='';
+  files.forEach((f,i)=>{
+    const d=document.createElement('div'); d.className='pill';
+    const n=f.name.length>24?f.name.slice(0,22)+'…':f.name;
+    d.innerHTML=`<span title="${f.name}">📄 ${n}</span><span class="rm" onclick="rmFile(${i})">✕</span>`;
+    PILLS.appendChild(d);
+  });
+}
+function rmFile(i){
+  URL.revokeObjectURL(urls[i]);
+  files.splice(i,1); urls.splice(i,1); wms.splice(i,1); wmUrls.splice(i,1);
+  if(!files.length){resetAll();return;}
+  idx=Math.min(idx,files.length-1);
+  mkPills(); mkTabs(); showWMOrOrig(idx);
+}
+
+/* ─── TABS ───────────────────────────────────────── */
+function mkTabs(){
+  TABS.innerHTML='';
+  if(files.length<=1) return;
+  files.forEach((_,i)=>{
+    const b=document.createElement('button'); b.className='tab'+(i===idx?' on':'');
+    b.textContent=`Ảnh ${i+1}`;
+    b.onclick=()=>{ idx=i; mkTabs(); showWMOrOrig(i); };
+    TABS.appendChild(b);
+  });
+}
+
+/* ─── SHOW ───────────────────────────────────────── */
+function showOrig(i){
+  const img=new Image();
+  img.onload=()=>{ CV.width=img.naturalWidth; CV.height=img.naturalHeight; X.drawImage(img,0,0); reveal(); setInfo(i,img); };
+  img.src=urls[i];
+}
+function showWMOrOrig(i){
+  if(wms[i]){
+    const img=new Image();
+    img.onload=()=>{ CV.width=img.naturalWidth; CV.height=img.naturalHeight; X.drawImage(img,0,0); reveal(); };
+    img.src=wms[i]; setInfo(i,null);
+  } else showOrig(i);
+}
+function reveal(){ PH.style.display='none'; CW.style.display='flex'; IB.classList.add('on'); }
+
+/* ─── INFO BOX ───────────────────────────────────── */
+function ext(n){ const m=n.match(/\.([^.]+)$/); return m?m[1].toUpperCase():'—'; }
+function setInfo(i,img){
+  const f=files[i];
+  document.getElementById('origN').textContent=f.name;
+  document.getElementById('origN').title=f.name;
+  document.getElementById('origE').textContent=ext(f.name);
+  if(img) document.getElementById('stat').textContent=
+    `📐 ${img.naturalWidth}×${img.naturalHeight}px  ·  💾 ${(f.size/1024).toFixed(1)} KB  ·  ${f.type}`;
+  const outEl=document.getElementById('outN'), extEl=document.getElementById('outE');
+  if(wms[i]){ outEl.textContent=`img_${i}_wm.png`; extEl.style.display='inline'; showOutUrl(i); }
+  else { outEl.textContent='Chưa áp dụng watermark...'; extEl.style.display='none'; hideOutUrl(); }
+}
+function showOutUrl(i){
+  const u=wmUrls[i];
+  const el=document.getElementById('outUrl');
+  el.href= u||'#';
+  el.textContent= u ? u : '⏳ Đang push lên GitHub...';
+  el.title= u||'';
+  document.getElementById('outUrlLbl').style.display='';
+  document.getElementById('outUrlRow').style.display='';
+}
+function hideOutUrl(){
+  document.getElementById('outUrlLbl').style.display='none';
+  document.getElementById('outUrlRow').style.display='none';
+}
+
+/* ─── COPY ───────────────────────────────────────── */
+function copyUrl(id,btn){
+  const el=document.getElementById(id), v=el.getAttribute('href');
+  if(!v||v==='#') return;
+  navigator.clipboard.writeText(v).then(()=>{
+    btn.textContent='✓ OK'; btn.classList.add('ok');
+    setTimeout(()=>{ btn.textContent='Copy URL'; btn.classList.remove('ok'); },1600);
+  });
+}
+function copySpan(id,btn){
+  const v=document.getElementById(id).textContent.trim();
+  if(!v||v==='—') return;
+  navigator.clipboard.writeText(v).then(()=>{
+    btn.textContent='✓ OK'; btn.classList.add('ok');
+    setTimeout(()=>{ btn.textContent='Copy tên'; btn.classList.remove('ok'); },1600);
+  });
+}
+
+/* ─── WATERMARK ENGINE ───────────────────────────── */
+function applyWM(){
+  if(!files.length){ toast('⚠️ Hãy upload ảnh trước!'); return; }
+
+  const text=document.getElementById('wt').value||'© Watermark';
+  const fs=+document.getElementById('ws').value;
+  const op=+document.getElementById('wo').value/100;
+  const sp=+document.getElementById('wsp').value;
+  const ag=+document.getElementById('wa').value*Math.PI/180;
+  const cl=document.getElementById('wc').value;
+  const fn=document.getElementById('wf').value;
+  const bd=document.getElementById('wb').checked;
+  const sh=document.getElementById('wsh').checked;
+
+  let done=0;
+  files.forEach((_,i)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const oc=document.createElement('canvas');
+      oc.width=img.naturalWidth; oc.height=img.naturalHeight;
+      const ox=oc.getContext('2d');
+      ox.drawImage(img,0,0);
+      ox.save();
+      ox.globalAlpha=op;
+      ox.font=`${bd?'bold ':''}${fs}px ${fn}`;
+      ox.fillStyle=cl; ox.textBaseline='middle';
+      if(sh){ ox.shadowColor='rgba(0,0,0,.65)'; ox.shadowBlur=Math.max(2,fs*.15); ox.shadowOffsetX=ox.shadowOffsetY=1; }
+      const tw=ox.measureText(text).width;
+      const diag=Math.hypot(oc.width,oc.height);
+      const cols=Math.ceil(diag/(tw+sp))+3, rows=Math.ceil(diag/(fs+sp))+3;
+      ox.translate(oc.width/2,oc.height/2); ox.rotate(ag);
+      const sx=-diag/2, sy=-diag/2;
+      for(let r=-rows;r<=rows*2;r++)
+        for(let co=-cols;co<=cols*2;co++)
+          ox.fillText(text, sx+co*(tw+sp), sy+r*(fs+sp));
+      ox.restore();
+
+      wms[i]=oc.toDataURL('image/png');
+      wmUrls[i]=null;
+      if(i===idx){ CV.width=oc.width; CV.height=oc.height; X.drawImage(oc,0,0); reveal(); setInfo(i,null); }
+      if(++done===files.length) toast(`✅ Đã đóng dấu ${done} ảnh – đang push GitHub...`);
+
+      // Push ảnh WM lên GitHub
+      const fname=`img_${i}_wm.png`;
+      ghPush(fname, wms[i])
+        .then(rawUrl=>{
+          wmUrls[i]=rawUrl;
+          setGhStatus('ok',`✅ Đã lưu ${done} ảnh lên GitHub`);
+          if(i===idx) showOutUrl(i);
+        })
+        .catch(err=>{
+          setGhStatus('err',`❌ Push thất bại: ${err.message}`);
+          toast(`❌ img_${i}_wm.png lỗi: ${err.message}`);
+        });
+    };
+    img.src=urls[i];
+  });
+}
+
+function setGhStatus(type, msg){
+  const el=document.getElementById('ghStatus');
+  el.className=`gh-status ${type}`; el.textContent=msg;
+}
+
+/* ─── DOWNLOAD ───────────────────────────────────── */
+function dlCurrent(){
+  if(!wms[idx]){ toast('⚠️ Hãy áp dụng watermark trước!'); return; }
+  const a=document.createElement('a');
+  a.href=wms[idx]; a.download=`img_${idx}_wm.png`; a.click();
+}
+function dlAll(){
+  const ok=wms.map((w,i)=>w?i:-1).filter(i=>i>=0);
+  if(!ok.length){ toast('⚠️ Hãy áp dụng watermark trước!'); return; }
+  ok.forEach((i,n)=>setTimeout(()=>{
+    const a=document.createElement('a');
+    a.href=wms[i]; a.download=`img_${i}_wm.png`; a.click();
+  },n*350));
+  toast(`⬇ Đang tải ${ok.length} ảnh...`);
+}
+
+/* ─── RESET ──────────────────────────────────────── */
+function resetAll(){
+  urls.forEach(u=>URL.revokeObjectURL(u));
+  files=[];urls=[];wms=[];wmUrls=[];idx=0;
+  PILLS.innerHTML=''; TABS.innerHTML='';
+  PH.style.display=''; CW.style.display='none';
+  IB.classList.remove('on'); BATCH.style.display='none'; FI.value='';
+  hideOutUrl();
+  toast('↺ Đã reset');
+}
+
+/* ─── TOAST ──────────────────────────────────────── */
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('on');
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('on'),2600);
+}
+</script>
+</body>
+</html>
