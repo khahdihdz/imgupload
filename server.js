@@ -175,15 +175,29 @@ app.post('/api/github-push', async (req, res) => {
       });
     }
 
-    // Trả về URL proxy qua server thay vì raw.githubusercontent.com
-    // (raw không hoạt động với private repo)
-    const isPrivate = !!process.env.GH_PRIVATE || false; // auto-detect below
-    const serveUrl = `/api/github-file/${encodeURIComponent(filename)}`;
+    // Kiểm tra repo public/private để chọn URL phù hợp:
+    // - Public repo  → raw.githubusercontent.com (CDN nhanh, link dùng được mọi nơi)
+    // - Private repo → /api/github-file proxy qua server (cần token)
+    let isPrivate = false;
+    try {
+      const repoInfo = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}`,
+        { headers }
+      );
+      if (repoInfo.ok) {
+        const repoData = await repoInfo.json();
+        isPrivate = repoData.private;
+      }
+    } catch (_) {}
+
+    const rawUrl   = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
+    const proxyUrl = `/api/github-file/${encodeURIComponent(filename)}`;
 
     res.json({
-      url     : serveUrl,          // URL dùng để hiển thị/copy (qua server proxy)
-      ghPath  : path,              // path trong repo GitHub
-      filename: filename
+      url      : isPrivate ? proxyUrl : rawUrl,
+      isPrivate: isPrivate,
+      ghPath   : path,
+      filename : filename
     });
   } catch (networkErr) {
     return res.status(500).json({ error: `Lỗi kết nối GitHub: ${networkErr.message}` });
